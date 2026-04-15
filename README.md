@@ -26,6 +26,8 @@ backend/
 ## Chạy local
 
 ```bash
+
+
 cd backend
 python -m venv .venv
 .venv\Scripts\activate
@@ -58,7 +60,13 @@ Content-Type: application/json
 
 Sau khi đăng nhập, các route `/api/v1/admin/*` yêu cầu header `Authorization: Bearer <access_token>`.
 
-## Gợi ý tích hợp FE
+## admin
+
+admin
+
+admin123
+
+Gợi ý tích hợp FE
 
 - Public data: `/api/v1/public/*`
 - Admin/CMS: `/api/v1/admin/*`
