@@ -1,9 +1,9 @@
 from typing import Any
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_db, require_admin_token
+from app.api.deps import get_db, require_admin_user
 from app.schemas.admin_navigation import (
     AdminNavigationMenuCreate,
     AdminNavigationMenuRead,
@@ -25,8 +25,9 @@ from app.services.admin_navigation import (
     replace_navigation_menu_tree,
     update_navigation_menu,
 )
+from app.services.media import create_uploaded_media_asset
 
-router = APIRouter(dependencies=[Depends(require_admin_token)])
+router = APIRouter(dependencies=[Depends(require_admin_user)])
 
 
 @router.get("/entities")
@@ -80,6 +81,16 @@ def replace_navigation_tree(
 @router.delete("/navigation/menus/{menu_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_navigation(menu_id: int, db: Session = Depends(get_db)) -> None:
     delete_navigation_menu(db=db, menu_id=menu_id)
+
+
+@router.post("/media/upload", status_code=status.HTTP_201_CREATED)
+async def upload_media_asset(
+    file: UploadFile = File(...),
+    title: str | None = Form(default=None),
+    alt_text: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    return await create_uploaded_media_asset(db=db, file=file, title=title, alt_text=alt_text)
 
 
 @router.get("/{entity_name}")

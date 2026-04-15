@@ -50,6 +50,7 @@ class Contact(BigIntPrimaryKeyMixin, TimestampMixin, Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     contact_type: Mapped[str | None] = mapped_column(String(100), index=True)
     address: Mapped[str | None] = mapped_column(Text)
+    postal_code: Mapped[str | None] = mapped_column(String(20))
     phone: Mapped[str | None] = mapped_column(String(100))
     email: Mapped[str | None] = mapped_column(String(150))
     map_url: Mapped[str | None] = mapped_column(String(500))

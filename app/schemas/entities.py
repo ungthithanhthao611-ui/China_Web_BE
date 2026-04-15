@@ -616,6 +616,7 @@ class ContactCreate(BaseModel):
     name: str
     contact_type: str | None = None
     address: str | None = None
+    postal_code: str | None = None
     phone: str | None = None
     email: EmailStr | None = None
     map_url: str | None = None
@@ -630,6 +631,7 @@ class ContactUpdate(BaseModel):
     name: str | None = None
     contact_type: str | None = None
     address: str | None = None
+    postal_code: str | None = None
     phone: str | None = None
     email: EmailStr | None = None
     map_url: str | None = None
@@ -645,6 +647,7 @@ class ContactRead(ORMModel):
     name: str
     contact_type: str | None
     address: str | None
+    postal_code: str | None
     phone: str | None
     email: EmailStr | None
     map_url: str | None

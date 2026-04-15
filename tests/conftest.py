@@ -11,6 +11,8 @@ import app.db.base  # noqa: F401
 from app.api.deps import get_db
 from app.api.router import api_router
 from app.core.config import settings
+from app.core.security import create_access_token, hash_password
+from app.models.admin import AdminUser
 from app.models.base import Base
 from app.models.taxonomy import Language
 
@@ -33,6 +35,14 @@ def client(tmp_path: Path) -> Generator[TestClient, None, None]:
     Base.metadata.create_all(bind=engine)
     with testing_session_local() as db:
         db.add(Language(id=1, code="en", name="English", is_default=True, status="active"))
+        db.add(
+            AdminUser(
+                username=settings.initial_admin_username,
+                password_hash=hash_password(settings.initial_admin_password),
+                role="admin",
+                is_active=True,
+            )
+        )
         db.commit()
 
     def override_get_db() -> Generator[Session, None, None]:
@@ -56,4 +66,5 @@ def client(tmp_path: Path) -> Generator[TestClient, None, None]:
 
 @pytest.fixture
 def admin_headers() -> dict[str, str]:
-    return {"X-Admin-Token": settings.admin_token}
+    token = create_access_token(subject=settings.initial_admin_username, role="admin")
+    return {"Authorization": f"Bearer {token}"}

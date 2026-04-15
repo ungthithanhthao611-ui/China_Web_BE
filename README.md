@@ -47,14 +47,36 @@ Swagger:
 
 ## Admin token
 
-Các route `/api/v1/admin/*` yêu cầu header:
+Admin CMS dùng đăng nhập username/password:
 
-```text
-X-Admin-Token: <  china-web-admin-2026 >
+```http
+POST /api/v1/auth/login
+Content-Type: application/json
+
+{"username":"admin","password":"<INITIAL_ADMIN_PASSWORD>"}
 ```
+
+Sau khi đăng nhập, các route `/api/v1/admin/*` yêu cầu header `Authorization: Bearer <access_token>`.
 
 ## Gợi ý tích hợp FE
 
 - Public data: `/api/v1/public/*`
 - Admin/CMS: `/api/v1/admin/*`
 - Bootstrap menu/settings: `/api/v1/public/bootstrap?language_code=en`
+
+## Production
+
+- Set `ENVIRONMENT=production`, `DEBUG=false`, `DOCS_ENABLED=false`.
+- Set `DATABASE_URL` sang PostgreSQL, ví dụ `postgresql+psycopg://user:password@db:5432/china_web_db`.
+- Set `AUTH_SECRET_KEY` bằng chuỗi random dài và đổi `INITIAL_ADMIN_PASSWORD`.
+- Chạy Docker Compose từ thư mục backend:
+
+```bash
+POSTGRES_PASSWORD=<db-password> AUTH_SECRET_KEY=<long-secret> INITIAL_ADMIN_PASSWORD=<admin-password> docker compose up --build
+```
+
+- Backup DB/media bằng PowerShell:
+
+```powershell
+.\scripts\backup.ps1
+```
