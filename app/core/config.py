@@ -23,6 +23,12 @@ class Settings(BaseSettings):
     upload_dir: str = "uploads"
     upload_url_prefix: str = "/uploads"
     max_upload_size_mb: int = 20
+    media_storage: str = "local"
+    cloudinary_url: str = ""
+    cloudinary_cloud_name: str = ""
+    cloudinary_api_key: str = ""
+    cloudinary_api_secret: str = ""
+    cloudinary_folder: str = "china-web"
     auth_secret_key: str = "change-this-auth-secret"
     access_token_expire_minutes: int = 480
     initial_admin_username: str = "admin"

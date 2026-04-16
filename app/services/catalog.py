@@ -4,7 +4,7 @@ from app.models.content import Banner, ContentBlock, ContentBlockItem, Page, Pag
 from app.models.media import EntityMedia, MediaAsset
 from app.models.navigation import Menu, MenuItem
 from app.models.news import Post, PostCategory
-from app.models.organization import Branch, Contact, Honor, InquirySubmission, Video
+from app.models.organization import Branch, Contact, Honor, HonorCategory, InquirySubmission, Video
 from app.models.projects import Project, ProjectCategory
 from app.models.taxonomy import Language, SiteSetting, Translation
 from app.schemas.entities import (
@@ -27,6 +27,9 @@ from app.schemas.entities import (
     EntityMediaRead,
     EntityMediaUpdate,
     HonorCreate,
+    HonorCategoryCreate,
+    HonorCategoryRead,
+    HonorCategoryUpdate,
     HonorRead,
     HonorUpdate,
     InquirySubmissionCreate,
@@ -111,6 +114,12 @@ ENTITY_REGISTRY: dict[str, EntityRegistration] = {
     "projects": EntityRegistration(Project, ProjectRead, ProjectCreate, ProjectUpdate),
     "videos": EntityRegistration(Video, VideoRead, VideoCreate, VideoUpdate),
     "contacts": EntityRegistration(Contact, ContactRead, ContactCreate, ContactUpdate),
+    "honor_categories": EntityRegistration(
+        HonorCategory,
+        HonorCategoryRead,
+        HonorCategoryCreate,
+        HonorCategoryUpdate,
+    ),
     "honors": EntityRegistration(Honor, HonorRead, HonorCreate, HonorUpdate),
     "branches": EntityRegistration(Branch, BranchRead, BranchCreate, BranchUpdate),
     "inquiry_submissions": EntityRegistration(

@@ -10,6 +10,7 @@ from app.schemas.admin_navigation import (
     AdminNavigationMenuUpdate,
     AdminNavigationTreeReplacePayload,
 )
+from app.schemas.post_workflow import PostImportPreview, PostSourceFetchRequest, PostSourcePreview
 from app.services.admin import (
     create_entity_record,
     delete_entity_record,
@@ -26,6 +27,7 @@ from app.services.admin_navigation import (
     update_navigation_menu,
 )
 from app.services.media import create_uploaded_media_asset
+from app.services.post_workflow import fetch_post_source_preview, import_post_file_preview
 
 router = APIRouter(dependencies=[Depends(require_admin_user)])
 
@@ -83,7 +85,7 @@ def delete_navigation(menu_id: int, db: Session = Depends(get_db)) -> None:
     delete_navigation_menu(db=db, menu_id=menu_id)
 
 
-@router.post("/media/upload", status_code=status.HTTP_201_CREATED)
+@router.post('/media/upload', status_code=status.HTTP_201_CREATED)
 async def upload_media_asset(
     file: UploadFile = File(...),
     title: str | None = Form(default=None),
@@ -93,7 +95,17 @@ async def upload_media_asset(
     return await create_uploaded_media_asset(db=db, file=file, title=title, alt_text=alt_text)
 
 
-@router.get("/{entity_name}")
+@router.post('/posts/source-preview')
+async def preview_post_source(payload: PostSourceFetchRequest) -> PostSourcePreview:
+    return await fetch_post_source_preview(payload)
+
+
+@router.post('/posts/import-preview')
+async def preview_post_import(file: UploadFile = File(...)) -> PostImportPreview:
+    return await import_post_file_preview(file)
+
+
+@router.get('/{entity_name}')
 def list_entity(
     entity_name: str,
     db: Session = Depends(get_db),

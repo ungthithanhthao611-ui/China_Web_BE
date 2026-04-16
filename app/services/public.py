@@ -8,9 +8,10 @@ from app.models.content import Banner, ContentBlock, ContentBlockItem, Page, Pag
 from app.models.media import EntityMedia, MediaAsset
 from app.models.navigation import Menu, MenuItem
 from app.models.news import Post, PostCategory
-from app.models.organization import Branch, Contact, Honor, Video
+from app.models.organization import Branch, Contact, Video
 from app.models.projects import Project, ProjectCategory
 from app.models.taxonomy import Language, SiteSetting
+from app.services.honors import list_public_honors
 from app.schemas.entities import (
     BannerRead,
     BranchRead,
@@ -304,32 +305,10 @@ def get_project_detail(db: Session, slug: str, language_code: str) -> dict[str, 
     return data
 
 
-def list_honors(db: Session, language_code: str, award_year: int | None) -> list[dict[str, Any]]:
-    language = get_language(db, language_code)
-    query = (
-        select(Honor)
-        .options(selectinload(Honor.image), selectinload(Honor.project))
-        .where(Honor.language_id == language.id)
-        .order_by(Honor.sort_order, Honor.award_year.desc().nullslast(), Honor.id.desc())
-    )
-    if award_year:
-        query = query.where(Honor.award_year == award_year)
-
-    honors = db.scalars(query).all()
-    payload = []
-    for honor in honors:
-        payload.append(
-            {
-                **_serialize(HonorRead, honor),
-                "image": _serialize_media(honor.image),
-                "project": (
-                    {"id": honor.project.id, "title": honor.project.title, "slug": honor.project.slug}
-                    if honor.project
-                    else None
-                ),
-            }
-        )
-    return payload
+def list_honors(db: Session, language_code: str, award_year: int | None) -> dict[str, Any]:
+    # language_code is kept for backward-compatible API shape.
+    _ = language_code
+    return list_public_honors(db=db, year=award_year)
 
 
 def list_branches(db: Session, language_code: str, branch_type: str | None) -> list[dict[str, Any]]:

@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, inspect, select, text
 from sqlalchemy.orm import Session
 
 from app.db.base import *  # noqa: F401,F403
@@ -9,15 +9,102 @@ from app.core.config import settings
 from app.core.security import hash_password
 from app.models.admin import AdminUser
 from app.models.base import Base
+from app.models.content import Banner, Page, PageSection
+from app.models.media import MediaAsset
 from app.models.navigation import Menu, MenuItem
-from app.models.organization import Contact
+from app.models.news import PostCategory
+from app.models.organization import Contact, Honor, HonorCategory, InquirySubmission
 from app.models.taxonomy import Language, SiteSetting
 
 
 def initialize_database() -> None:
     Base.metadata.create_all(bind=engine)
+    ensure_honors_schema()
     with SessionLocal() as session:
         seed_basics(session)
+
+
+def ensure_honors_schema() -> None:
+    with engine.begin() as conn:
+        inspector = inspect(conn)
+        table_names = set(inspector.get_table_names())
+        if "honors" not in table_names:
+            return
+
+        column_names = {column["name"] for column in inspector.get_columns("honors")}
+        columns_to_add = [
+            ("category_id", "BIGINT"),
+            ("slug", "VARCHAR(255)"),
+            ("short_description", "TEXT"),
+            ("image_url", "VARCHAR(500)"),
+            ("year", "INTEGER"),
+            ("issued_by", "VARCHAR(255)"),
+            ("display_type", "VARCHAR(100)"),
+            ("is_featured", "BOOLEAN"),
+            ("is_active", "BOOLEAN"),
+            ("created_by", "BIGINT"),
+            ("updated_by", "BIGINT"),
+            ("deleted_at", "TIMESTAMP WITH TIME ZONE"),
+        ]
+
+        for column_name, column_type in columns_to_add:
+            if column_name in column_names:
+                continue
+            conn.execute(text(f"ALTER TABLE honors ADD COLUMN {column_name} {column_type}"))
+
+        refreshed_columns = {column["name"] for column in inspect(conn).get_columns("honors")}
+
+        if "description" in refreshed_columns and "short_description" in refreshed_columns:
+            conn.execute(
+                text(
+                    "UPDATE honors SET short_description = description "
+                    "WHERE short_description IS NULL AND description IS NOT NULL"
+                )
+            )
+        if "award_year" in refreshed_columns and "year" in refreshed_columns:
+            conn.execute(text("UPDATE honors SET year = award_year WHERE year IS NULL AND award_year IS NOT NULL"))
+        if "issuer" in refreshed_columns and "issued_by" in refreshed_columns:
+            conn.execute(
+                text("UPDATE honors SET issued_by = issuer WHERE issued_by IS NULL AND issuer IS NOT NULL")
+            )
+        if "image_id" in refreshed_columns and "image_url" in refreshed_columns:
+            conn.execute(
+                text(
+                    "UPDATE honors SET image_url = (SELECT url FROM media_assets WHERE media_assets.id = honors.image_id) "
+                    "WHERE image_url IS NULL AND image_id IS NOT NULL"
+                )
+            )
+        if "award_category" in refreshed_columns and "display_type" in refreshed_columns:
+            conn.execute(
+                text(
+                    "UPDATE honors SET display_type = CASE "
+                    "WHEN lower(coalesce(award_category, '')) LIKE '%corporate%' THEN 'corporate_honors' "
+                    "WHEN lower(coalesce(award_category, '')) LIKE '%project%' THEN 'project_honors' "
+                    "ELSE 'qualification_certificate' END "
+                    "WHERE display_type IS NULL"
+                )
+            )
+
+        if "display_type" in refreshed_columns:
+            conn.execute(
+                text(
+                    "UPDATE honors SET display_type = 'qualification_certificate' "
+                    "WHERE display_type IS NULL OR display_type = ''"
+                )
+            )
+        if "is_active" in refreshed_columns:
+            conn.execute(text("UPDATE honors SET is_active = TRUE WHERE is_active IS NULL"))
+        if "is_featured" in refreshed_columns:
+            conn.execute(text("UPDATE honors SET is_featured = FALSE WHERE is_featured IS NULL"))
+        if "slug" in refreshed_columns:
+            conn.execute(text("UPDATE honors SET slug = 'honor-' || id WHERE slug IS NULL OR slug = ''"))
+
+        if "language_id" in refreshed_columns:
+            conn.execute(text("UPDATE honors SET language_id = 1 WHERE language_id IS NULL"))
+            try:
+                conn.execute(text("ALTER TABLE honors ALTER COLUMN language_id SET DEFAULT 1"))
+            except Exception:
+                pass
 
 
 def seed_basics(session: Session) -> None:
@@ -38,9 +125,15 @@ def seed_basics(session: Session) -> None:
     default_language_id = default_language.id if default_language else None
 
     seed_site_settings(session=session, language_id=default_language_id)
+    seed_post_categories(session=session)
     if default_language_id is not None:
+        media_by_key = seed_media_assets(session=session)
+        seed_pages(session=session, language_id=default_language_id, media_by_key=media_by_key)
+        seed_banners(session=session, language_id=default_language_id, media_by_key=media_by_key)
         seed_navigation(session=session, language_id=default_language_id)
+        seed_honors(session=session)
         seed_contacts(session=session, language_id=default_language_id)
+        seed_inquiries(session=session)
     seed_initial_admin_user(session=session)
 
     session.commit()
@@ -66,10 +159,146 @@ def seed_initial_admin_user(session: Session) -> None:
     )
 
 
+
+
+def seed_media_assets(session: Session) -> dict[str, MediaAsset]:
+    media_seed = [
+        {
+            "key": "hero-home",
+            "uuid": "seed-hero-home",
+            "file_name": "hero-home.jpg",
+            "url": "https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1600&q=80",
+            "storage_path": "seed/hero-home.jpg",
+            "asset_type": "image",
+            "mime_type": "image/jpeg",
+            "width": 1600,
+            "height": 900,
+            "size": 248320,
+            "alt_text": "Modern corporate building lobby",
+            "title": "Corporate hero image",
+            "status": "active",
+        },
+        {
+            "key": "about-section",
+            "uuid": "seed-about-section",
+            "file_name": "about-section.jpg",
+            "url": "https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?auto=format&fit=crop&w=1200&q=80",
+            "storage_path": "seed/about-section.jpg",
+            "asset_type": "image",
+            "mime_type": "image/jpeg",
+            "width": 1200,
+            "height": 800,
+            "size": 196410,
+            "alt_text": "Executive meeting room with planning board",
+            "title": "About section image",
+            "status": "active",
+        },
+        {
+            "key": "contact-map",
+            "uuid": "seed-contact-map",
+            "file_name": "contact-map.jpg",
+            "url": "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1200&q=80",
+            "storage_path": "seed/contact-map.jpg",
+            "asset_type": "image",
+            "mime_type": "image/jpeg",
+            "width": 1200,
+            "height": 800,
+            "size": 184220,
+            "alt_text": "City office exterior",
+            "title": "Contact office image",
+            "status": "active",
+        },
+    ]
+
+    existing_by_uuid = {item.uuid: item for item in session.scalars(select(MediaAsset)).all()}
+    media_by_key: dict[str, MediaAsset] = {}
+
+    for item in media_seed:
+        record = existing_by_uuid.get(item["uuid"])
+        if not record:
+            record = MediaAsset(uuid=item["uuid"], url=item["url"], asset_type=item["asset_type"])
+
+        record.file_name = item["file_name"]
+        record.url = item["url"]
+        record.storage_path = item["storage_path"]
+        record.asset_type = item["asset_type"]
+        record.mime_type = item["mime_type"]
+        record.width = item["width"]
+        record.height = item["height"]
+        record.size = item["size"]
+        record.alt_text = item["alt_text"]
+        record.title = item["title"]
+        record.status = item["status"]
+        session.add(record)
+        session.flush()
+        media_by_key[item["key"]] = record
+
+    return media_by_key
+
+
+def seed_post_categories(session: Session) -> None:
+    categories_seed = [
+        {
+            "name": "Corporate News",
+            "slug": "corporate-news",
+            "description": "Tin doanh nghiệp hiển thị ở nhóm Corporate News ngoài frontend.",
+            "sort_order": 10,
+            "status": "active",
+        },
+        {
+            "name": "Industry dynamics",
+            "slug": "industry-dynamics",
+            "description": "Tin ngành hiển thị ở nhóm Industry dynamics ngoài frontend.",
+            "sort_order": 20,
+            "status": "active",
+        },
+        {
+            "name": "Needs Review",
+            "slug": "needs-review",
+            "description": "Nội dung chưa xác định category public phù hợp, cần biên tập rà soát.",
+            "sort_order": 30,
+            "status": "active",
+        },
+    ]
+
+    categories_by_slug = {item.slug: item for item in session.scalars(select(PostCategory)).all()}
+
+    for seed in categories_seed:
+        category = categories_by_slug.get(seed["slug"])
+        if not category:
+            category = PostCategory(slug=seed["slug"], name=seed["name"])
+
+        category.name = seed["name"]
+        category.description = seed["description"]
+        category.sort_order = seed["sort_order"]
+        category.status = seed["status"]
+        session.add(category)
+        session.flush()
+        categories_by_slug[seed["slug"]] = category
+
+
 def seed_site_settings(session: Session, language_id: int | None) -> None:
     settings_seed = [
         ("site_name", "China Decor", "general", "Public site display name"),
-        ("site_tagline", "Corporate Website API", "general", "Short tagline for header/footer"),
+        ("site_tagline", "Premium corporate landing experience for architecture and design services.", "general", "Short tagline for header/footer"),
+        ("homepage_hero_title", "Building premium spaces with Chinese craftsmanship.", "homepage", "Hero headline for the landing page"),
+        (
+            "homepage_hero_subtitle",
+            "Integrated design, fit-out, and project delivery solutions for corporate, hospitality, and public-sector spaces.",
+            "homepage",
+            "Hero subtitle for the landing page",
+        ),
+        ("homepage_primary_cta", "Explore Our Story", "homepage", "Primary CTA label"),
+        ("homepage_primary_cta_link", "/about/company-introduction", "homepage", "Primary CTA target"),
+        ("footer_hotline_label", "Hotline", "footer", "Label displayed before hotline"),
+        ("footer_email_label", "Email", "footer", "Label displayed before company email"),
+        ("seo_default_title", "China Decor | Corporate Landing Page", "seo", "Default SEO title"),
+        (
+            "seo_default_description",
+            "China Decor corporate landing page showcasing company profile, services, honors, videos, and contact information.",
+            "seo",
+            "Default SEO description",
+        ),
         (
             "company_address",
             "Add: 5F, Block C, Hehuamingcheng Building, No.7 Jianguomen South Street, Dongcheng District, Beijing",
@@ -116,6 +345,430 @@ def seed_site_settings(session: Session, language_id: int | None) -> None:
         )
 
 
+def seed_pages(session: Session, language_id: int, media_by_key: dict[str, MediaAsset]) -> None:
+    pages_seed = [
+        {
+            "slug": "about/company-introduction",
+            "title": "Company Introduction",
+            "summary": "A concise introduction to China Decor's positioning, heritage, and integrated service capability.",
+            "body": "China Decor delivers integrated design and fit-out services for premium commercial, hospitality, and public-sector environments across China.",
+            "page_type": "about",
+            "status": "published",
+            "meta_title": "About China Decor",
+            "meta_description": "Learn about China Decor, our heritage, capabilities, and premium project delivery approach.",
+            "sort_order": 10,
+            "sections": [
+                {
+                    "anchor": "page1",
+                    "title": "Who We Are",
+                    "content": "China Decor is a corporate-focused interior and construction brand delivering turnkey spatial solutions with a strong emphasis on execution quality, design thinking, and reliable coordination.",
+                    "image_id": media_by_key["about-section"].id,
+                    "section_type": "intro",
+                    "sort_order": 10,
+                },
+                {
+                    "anchor": "page2",
+                    "title": "What We Deliver",
+                    "content": "We provide integrated services spanning strategy, design, engineering coordination, material integration, site execution, and final handover for premium-use spaces.",
+                    "image_id": media_by_key["hero-home"].id,
+                    "section_type": "capability",
+                    "sort_order": 20,
+                },
+            ],
+        },
+        {
+            "slug": "contact",
+            "title": "Contact Us",
+            "summary": "Reach China Decor through our headquarters, hotline, email, or inquiry form.",
+            "body": "Get in touch with our corporate team for project consulting, strategic partnerships, and media inquiries.",
+            "page_type": "contact",
+            "status": "published",
+            "meta_title": "Contact China Decor",
+            "meta_description": "Contact China Decor through our headquarters information, map, hotline, and email.",
+            "sort_order": 20,
+            "sections": [
+                {
+                    "anchor": "ctn1",
+                    "title": "Corporate Inquiry",
+                    "content": "Use the inquiry form to contact our business development and project advisory team. We respond to qualified requests within one business day.",
+                    "image_id": media_by_key["contact-map"].id,
+                    "section_type": "contact_form",
+                    "sort_order": 10,
+                },
+                {
+                    "anchor": "ctn2",
+                    "title": "Head Office",
+                    "content": "Visit our Beijing headquarters for scheduled meetings, partnership discussions, and project presentations.",
+                    "image_id": media_by_key["contact-map"].id,
+                    "section_type": "location",
+                    "sort_order": 20,
+                },
+            ],
+        },
+        {
+            "slug": "privacy-policy",
+            "title": "Privacy Policy",
+            "summary": "Guidelines on data handling and visitor privacy protection.",
+            "body": "This privacy policy explains how China Decor collects, processes, and safeguards information submitted through our website.",
+            "page_type": "legal",
+            "status": "published",
+            "meta_title": "Privacy Policy | China Decor",
+            "meta_description": "Read the China Decor privacy policy for information about website data handling and visitor rights.",
+            "sort_order": 30,
+            "sections": [
+                {
+                    "anchor": "page1",
+                    "title": "Data Collection",
+                    "content": "We collect only the information necessary to respond to inquiries, improve user experience, and maintain secure website operations.",
+                    "image_id": None,
+                    "section_type": "legal_text",
+                    "sort_order": 10,
+                }
+            ],
+        },
+    ]
+
+    pages_by_slug = {
+        (page.slug, page.language_id): page
+        for page in session.scalars(select(Page).where(Page.language_id == language_id)).all()
+    }
+
+    for page_seed in pages_seed:
+        key = (page_seed["slug"], language_id)
+        page = pages_by_slug.get(key)
+        if not page:
+            page = Page(slug=page_seed["slug"], language_id=language_id)
+
+        page.title = page_seed["title"]
+        page.summary = page_seed["summary"]
+        page.body = page_seed["body"]
+        page.page_type = page_seed["page_type"]
+        page.parent_id = None
+        page.status = page_seed["status"]
+        page.meta_title = page_seed["meta_title"]
+        page.meta_description = page_seed["meta_description"]
+        page.sort_order = page_seed["sort_order"]
+        session.add(page)
+        session.flush()
+
+        existing_sections = {
+            (section.anchor or "", section.section_type or ""): section
+            for section in session.scalars(select(PageSection).where(PageSection.page_id == page.id)).all()
+        }
+
+        for section_seed in page_seed["sections"]:
+            section_key = (section_seed["anchor"] or "", section_seed["section_type"] or "")
+            section = existing_sections.get(section_key)
+            if not section:
+                section = PageSection(page_id=page.id)
+
+            section.anchor = section_seed["anchor"]
+            section.title = section_seed["title"]
+            section.content = section_seed["content"]
+            section.image_id = section_seed["image_id"]
+            section.section_type = section_seed["section_type"]
+            section.sort_order = section_seed["sort_order"]
+            session.add(section)
+
+
+def seed_banners(session: Session, language_id: int, media_by_key: dict[str, MediaAsset]) -> None:
+    banners_seed = [
+        {
+            "title": "Build premium corporate environments",
+            "subtitle": "Integrated design, construction, and delivery for flagship commercial spaces.",
+            "body": "From concept strategy to on-site execution, China Decor supports complex projects with a premium delivery mindset.",
+            "image_id": media_by_key["hero-home"].id,
+            "link": "/about/company-introduction",
+            "button_text": "Discover More",
+            "banner_type": "hero",
+            "sort_order": 10,
+            "is_active": True,
+        },
+        {
+            "title": "Talk to our project advisory team",
+            "subtitle": "Share your scope, timeline, and spatial goals for an initial consultation.",
+            "body": "Our team helps enterprises, hospitality groups, and public-sector organizations map an efficient delivery roadmap.",
+            "image_id": media_by_key["contact-map"].id,
+            "link": "/contact",
+            "button_text": "Contact Us",
+            "banner_type": "cta",
+            "sort_order": 20,
+            "is_active": True,
+        },
+    ]
+
+    existing_banners = {
+        (banner.title or "", banner.language_id): banner
+        for banner in session.scalars(select(Banner).where(Banner.language_id == language_id)).all()
+    }
+
+    for banner_seed in banners_seed:
+        key = (banner_seed["title"], language_id)
+        banner = existing_banners.get(key)
+        if not banner:
+            banner = Banner(language_id=language_id)
+
+        banner.title = banner_seed["title"]
+        banner.subtitle = banner_seed["subtitle"]
+        banner.body = banner_seed["body"]
+        banner.image_id = banner_seed["image_id"]
+        banner.link = banner_seed["link"]
+        banner.button_text = banner_seed["button_text"]
+        banner.banner_type = banner_seed["banner_type"]
+        banner.sort_order = banner_seed["sort_order"]
+        banner.is_active = banner_seed["is_active"]
+        session.add(banner)
+
+
+def seed_honors(session: Session) -> None:
+    categories_seed = [
+        {
+            "name": "Qualification Certificate",
+            "slug": "qualification-certificate",
+            "type": "qualification_certificate",
+            "parent_slug": None,
+            "description": "Qualification and compliance certificates.",
+            "sort_order": 0,
+            "is_active": True,
+        },
+        {
+            "name": "Honorary Awards",
+            "slug": "honorary-awards",
+            "type": "awards_group",
+            "parent_slug": None,
+            "description": "Awards grouped by corporate and project tabs.",
+            "sort_order": 10,
+            "is_active": True,
+        },
+        {
+            "name": "Corporate Honors",
+            "slug": "corporate-honors",
+            "type": "corporate_honors",
+            "parent_slug": "honorary-awards",
+            "description": "Corporate-level honors and association awards.",
+            "sort_order": 20,
+            "is_active": True,
+        },
+        {
+            "name": "Project Honors",
+            "slug": "project-honors",
+            "type": "project_honors",
+            "parent_slug": "honorary-awards",
+            "description": "Project-specific honors and certifications.",
+            "sort_order": 30,
+            "is_active": True,
+        },
+    ]
+
+    categories_by_slug = {
+        category.slug: category for category in session.scalars(select(HonorCategory)).all()
+    }
+
+    for seed in categories_seed:
+        category = categories_by_slug.get(seed["slug"])
+        if category:
+            continue
+
+        parent_slug = seed["parent_slug"]
+        parent_id = categories_by_slug[parent_slug].id if parent_slug and parent_slug in categories_by_slug else None
+        category = HonorCategory(
+            slug=seed["slug"],
+            name=seed["name"],
+            type=seed["type"],
+            parent_id=parent_id,
+            description=seed["description"],
+            sort_order=seed["sort_order"],
+            is_active=seed["is_active"],
+            deleted_at=None,
+        )
+        session.add(category)
+        session.flush()
+        categories_by_slug[seed["slug"]] = category
+
+    honors_seed = [
+        {
+            "title": "Contract enterprise certificate",
+            "slug": "contract-enterprise-certificate",
+            "category_slug": "qualification-certificate",
+            "short_description": "Qualification certificate for enterprise credibility.",
+            "image_url": "https://en.sinodecor.com/portal-local/ngc202304190002/cms/image/29559d05-0b20-4044-9830-81c74dd9e70d.jpg",
+            "year": 2023,
+            "issued_by": "Beijing Authority",
+            "display_type": "qualification_certificate",
+            "sort_order": 0,
+        },
+        {
+            "title": "High-tech enterprises",
+            "slug": "high-tech-enterprises",
+            "category_slug": "qualification-certificate",
+            "short_description": "Recognized as high-tech enterprise.",
+            "image_url": "https://en.sinodecor.com/portal-local/ngc202304190002/cms/image/f1e6b95b-00f9-458f-bdfc-9e39d93c72d4.jpg",
+            "year": 2022,
+            "issued_by": "National Technology Program",
+            "display_type": "qualification_certificate",
+            "sort_order": 10,
+        },
+        {
+            "title": "Civilized organization of the central state organs",
+            "slug": "civilized-organization-central-state-organs",
+            "category_slug": "corporate-honors",
+            "short_description": "Corporate award for organizational excellence.",
+            "image_url": "https://en.sinodecor.com/portal-local/ngc202304190002/cms/image/d13d5d1c-7bc2-41de-b0e0-2e14da8b3b72.png",
+            "year": 2021,
+            "issued_by": "Central Committee",
+            "display_type": "corporate_honors",
+            "sort_order": 20,
+        },
+        {
+            "title": "Vice-chairman unit of CBDA",
+            "slug": "vice-chairman-unit-cbda",
+            "category_slug": "corporate-honors",
+            "short_description": "Corporate distinction from CBDA.",
+            "image_url": "https://en.sinodecor.com/portal-local/ngc202304190002/cms/image/1dffe04b-f900-4fde-b8f1-95a451cfdb2c.jpg",
+            "year": 2020,
+            "issued_by": "CBDA",
+            "display_type": "corporate_honors",
+            "sort_order": 30,
+        },
+        {
+            "title": "China building decoration industry top 100 enterprises",
+            "slug": "china-building-decoration-top-100-enterprises",
+            "category_slug": "project-honors",
+            "short_description": "Project honor for top 100 excellence.",
+            "image_url": "https://en.sinodecor.com/portal-local/ngc202304190002/cms/image/7539e162-e7f1-4e45-aa80-09b8a6d2ee19.jpg",
+            "year": 2024,
+            "issued_by": "China Building Decoration Association",
+            "display_type": "project_honors",
+            "sort_order": 40,
+        },
+        {
+            "title": "Asian-Pacific best design enterprise",
+            "slug": "asian-pacific-best-design-enterprise",
+            "category_slug": "project-honors",
+            "short_description": "Regional project design excellence recognition.",
+            "image_url": "https://en.sinodecor.com/portal-local/ngc202304190002/cms/image/6cf5ccb3-d681-455c-a85b-1f962020d720.jpg",
+            "year": 2023,
+            "issued_by": "AP Design Council",
+            "display_type": "project_honors",
+            "sort_order": 50,
+        },
+        {
+            "title": "Environmental management system certification",
+            "slug": "environmental-management-system-certification",
+            "category_slug": "qualification-certificate",
+            "short_description": "Environmental management system certificate.",
+            "image_url": "https://en.sinodecor.com/portal-local/ngc202304190002/cms/image/7181e0bb-edfa-4596-8f78-a59e8cab934c.jpg",
+            "year": None,
+            "issued_by": "Environmental Certification Authority",
+            "display_type": "qualification_certificate",
+            "sort_order": 60,
+        },
+        {
+            "title": "China quality integrity AAA enterprises",
+            "slug": "china-quality-integrity-aaa-enterprises",
+            "category_slug": "qualification-certificate",
+            "short_description": "AAA quality integrity enterprise recognition.",
+            "image_url": "https://en.sinodecor.com/portal-local/ngc202304190002/cms/image/00a72575-94ca-4e12-91d1-e33d739fcac4.jpg",
+            "year": None,
+            "issued_by": "Quality Integrity Program",
+            "display_type": "qualification_certificate",
+            "sort_order": 70,
+        },
+        {
+            "title": "Beijing \"innovative\" small and medium-sized enterprises",
+            "slug": "beijing-innovative-small-and-medium-sized-enterprises",
+            "category_slug": "qualification-certificate",
+            "short_description": "Innovation recognition for Beijing SMEs.",
+            "image_url": "https://en.sinodecor.com/portal-local/ngc202304190002/cms/image/3c1ce1e0-e0c7-455f-b01d-6ef174ea3124.jpg",
+            "year": None,
+            "issued_by": "Beijing SME Innovation Program",
+            "display_type": "qualification_certificate",
+            "sort_order": 80,
+        },
+        {
+            "title": "PROMISE-KEEPING ENTERPRISE OF BAIC",
+            "slug": "promise-keeping-enterprise-of-baic",
+            "category_slug": "corporate-honors",
+            "short_description": "Corporate credibility and trustkeeping distinction.",
+            "image_url": "https://en.sinodecor.com/portal-local/ngc202304190002/cms/image/e6bb6639-ee6d-4081-b382-bea768d7ac0e.png",
+            "year": None,
+            "issued_by": "BAIC",
+            "display_type": "corporate_honors",
+            "sort_order": 90,
+        },
+        {
+            "title": "China building decoration industry for 30 years pioneering enterprises",
+            "slug": "china-building-decoration-industry-30-years-pioneering-enterprises",
+            "category_slug": "corporate-honors",
+            "short_description": "Pioneering enterprise honor in building decoration industry.",
+            "image_url": "https://en.sinodecor.com/portal-local/ngc202304190002/cms/image/d8e4fa85-2bb3-48b8-a4fe-8e0ef6c325e7.jpg",
+            "year": None,
+            "issued_by": "China Building Decoration Industry",
+            "display_type": "corporate_honors",
+            "sort_order": 100,
+        },
+        {
+            "title": "2016 China Architectural Engineering Decoration Award",
+            "slug": "2016-china-architectural-engineering-decoration-award",
+            "category_slug": "project-honors",
+            "short_description": "Project-level national architectural engineering decoration award.",
+            "image_url": "https://en.sinodecor.com/portal-local/ngc202304190002/cms/image/0a30450e-a19d-42a9-989b-53da9e612b9d.jpg",
+            "year": 2016,
+            "issued_by": "China Architectural Decoration Association",
+            "display_type": "project_honors",
+            "sort_order": 110,
+        },
+        {
+            "title": "2020 China Architectural Engineering Decoration Award",
+            "slug": "2020-china-architectural-engineering-decoration-award",
+            "category_slug": "project-honors",
+            "short_description": "Project-level national architectural engineering decoration award.",
+            "image_url": "https://en.sinodecor.com/portal-local/ngc202304190002/cms/image/e6959d45-ef96-4782-bab8-d5ed26a89034.jpg",
+            "year": 2020,
+            "issued_by": "China Architectural Decoration Association",
+            "display_type": "project_honors",
+            "sort_order": 120,
+        },
+        {
+            "title": "2022 Excellent design of Beijing Architectural Decoration Project",
+            "slug": "2022-excellent-design-beijing-architectural-decoration-project",
+            "category_slug": "project-honors",
+            "short_description": "Excellent design recognition for Beijing architectural decoration project.",
+            "image_url": "https://en.sinodecor.com/portal-local/ngc202304190002/cms/image/6c9316c9-711b-45f3-9aa6-5320468647eb.jpg",
+            "year": 2022,
+            "issued_by": "Beijing Architectural Decoration Association",
+            "display_type": "project_honors",
+            "sort_order": 130,
+        },
+    ]
+
+    honors_by_slug = {honor.slug: honor for honor in session.scalars(select(Honor)).all()}
+    for seed in honors_seed:
+        honor = honors_by_slug.get(seed["slug"])
+        if honor:
+            continue
+
+        honor = Honor(
+            category_id=categories_by_slug[seed["category_slug"]].id,
+            title=seed["title"],
+            slug=seed["slug"],
+            short_description=seed["short_description"],
+            image_url=seed["image_url"],
+            year=seed["year"],
+            issued_by=seed["issued_by"],
+            display_type=seed["display_type"],
+            sort_order=seed["sort_order"],
+            is_featured=False,
+            is_active=True,
+            deleted_at=None,
+        )
+        session.add(honor)
+
+
+
+
+
+
 def seed_contacts(session: Session, language_id: int) -> None:
     existing_contact = session.scalar(
         select(Contact).where(Contact.language_id == language_id).order_by(Contact.is_primary.desc(), Contact.id.asc())
@@ -141,6 +794,51 @@ def seed_contacts(session: Session, language_id: int) -> None:
             language_id=language_id,
         )
     )
+
+
+def seed_inquiries(session: Session) -> None:
+    inquiries_seed = [
+        {
+            "full_name": "Liu Jian",
+            "email": "liu.jian@example.com",
+            "phone": "+86 13800001234",
+            "company": "Beijing Urban Space Group",
+            "subject": "Head office lobby renovation inquiry",
+            "message": "We need an initial consultation for a premium office lobby renovation project scheduled for Q3.",
+            "source_page": "/contact",
+            "status": "new",
+        },
+        {
+            "full_name": "Emma Carter",
+            "email": "emma.carter@example.com",
+            "phone": "+44 7700 900123",
+            "company": "Carter Hospitality Advisory",
+            "subject": "Partnership for hospitality fit-out project",
+            "message": "Our team is exploring a China-based delivery partner for a hospitality refurbishment program and would like capability materials.",
+            "source_page": "/contact",
+            "status": "processing",
+        },
+    ]
+
+    existing_records = {
+        (item.email, item.subject or ""): item for item in session.scalars(select(InquirySubmission)).all()
+    }
+
+    for inquiry_seed in inquiries_seed:
+        key = (inquiry_seed["email"], inquiry_seed["subject"] or "")
+        record = existing_records.get(key)
+        if not record:
+            record = InquirySubmission(email=inquiry_seed["email"], message=inquiry_seed["message"], full_name=inquiry_seed["full_name"])
+
+        record.full_name = inquiry_seed["full_name"]
+        record.email = inquiry_seed["email"]
+        record.phone = inquiry_seed["phone"]
+        record.company = inquiry_seed["company"]
+        record.subject = inquiry_seed["subject"]
+        record.message = inquiry_seed["message"]
+        record.source_page = inquiry_seed["source_page"]
+        record.status = inquiry_seed["status"]
+        session.add(record)
 
 
 def seed_navigation(session: Session, language_id: int) -> None:
@@ -181,11 +879,11 @@ def seed_navigation(session: Session, language_id: int) -> None:
         },
         {
             "title": "News Center",
-            "url": "/news/enterprise",
+            "url": "/news/corporate-news",
             "sort_order": 40,
             "children": [
-                {"title": "Corporate News", "url": "/news/enterprise", "sort_order": 0},
-                {"title": "Industry Dynamics", "url": "/news/industry", "sort_order": 10},
+                {"title": "Corporate News", "url": "/news/corporate-news", "sort_order": 0},
+                {"title": "Industry Dynamics", "url": "/news/industry-dynamics", "sort_order": 10},
             ],
         },
         {
@@ -236,11 +934,11 @@ def seed_navigation(session: Session, language_id: int) -> None:
         },
         {
             "title": "News Center",
-            "url": "/news/enterprise",
+            "url": "/news/corporate-news",
             "sort_order": 30,
             "children": [
-                {"title": "Corporate News", "url": "/news/enterprise", "sort_order": 0},
-                {"title": "Industry Dynamics", "url": "/news/industry", "sort_order": 10},
+                {"title": "Corporate News", "url": "/news/corporate-news", "sort_order": 0},
+                {"title": "Industry Dynamics", "url": "/news/industry-dynamics", "sort_order": 10},
             ],
         },
         {

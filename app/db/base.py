@@ -3,7 +3,7 @@ from app.models.content import Banner, ContentBlock, ContentBlockItem, Page, Pag
 from app.models.media import EntityMedia, MediaAsset
 from app.models.navigation import Menu, MenuItem
 from app.models.news import Post, PostCategory
-from app.models.organization import Branch, Contact, Honor, InquirySubmission, Video
+from app.models.organization import Branch, Contact, Honor, HonorCategory, InquirySubmission, Video
 from app.models.projects import Project, ProjectCategory
 from app.models.taxonomy import Language, SiteSetting, Translation
 
@@ -16,6 +16,7 @@ __all__ = [
     "ContentBlockItem",
     "EntityMedia",
     "Honor",
+    "HonorCategory",
     "InquirySubmission",
     "Language",
     "MediaAsset",

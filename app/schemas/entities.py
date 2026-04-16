@@ -660,43 +660,93 @@ class ContactRead(ORMModel):
     updated_at: datetime
 
 
-class HonorCreate(BaseModel):
-    title: str
+class HonorCategoryCreate(BaseModel):
+    name: str
+    slug: str
+    type: str
+    parent_id: int | None = None
     description: str | None = None
-    award_year: int | None = None
-    award_category: str | None = None
-    project_id: int | None = None
-    image_id: int | None = None
-    issuer: str | None = None
-    language_id: int
     sort_order: int = 0
+    is_active: bool = True
+
+
+class HonorCategoryUpdate(BaseModel):
+    name: str | None = None
+    slug: str | None = None
+    type: str | None = None
+    parent_id: int | None = None
+    description: str | None = None
+    sort_order: int | None = None
+    is_active: bool | None = None
+    deleted_at: datetime | None = None
+
+
+class HonorCategoryRead(ORMModel):
+    id: int
+    name: str
+    slug: str
+    type: str
+    parent_id: int | None
+    description: str | None
+    sort_order: int
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+    deleted_at: datetime | None
+
+
+class HonorCreate(BaseModel):
+    category_id: int | None = None
+    title: str
+    slug: str
+    short_description: str | None = None
+    image_url: str | None = None
+    year: int | None = None
+    issued_by: str | None = None
+    display_type: str = "qualification_certificate"
+    sort_order: int = 0
+    is_featured: bool = False
+    is_active: bool = True
+    created_by: int | None = None
+    updated_by: int | None = None
+    deleted_at: datetime | None = None
 
 
 class HonorUpdate(BaseModel):
+    category_id: int | None = None
     title: str | None = None
-    description: str | None = None
-    award_year: int | None = None
-    award_category: str | None = None
-    project_id: int | None = None
-    image_id: int | None = None
-    issuer: str | None = None
-    language_id: int | None = None
+    slug: str | None = None
+    short_description: str | None = None
+    image_url: str | None = None
+    year: int | None = None
+    issued_by: str | None = None
+    display_type: str | None = None
     sort_order: int | None = None
+    is_featured: bool | None = None
+    is_active: bool | None = None
+    created_by: int | None = None
+    updated_by: int | None = None
+    deleted_at: datetime | None = None
 
 
 class HonorRead(ORMModel):
     id: int
+    category_id: int | None
     title: str
-    description: str | None
-    award_year: int | None
-    award_category: str | None
-    project_id: int | None
-    image_id: int | None
-    issuer: str | None
-    language_id: int
+    slug: str
+    short_description: str | None
+    image_url: str | None
+    year: int | None
+    issued_by: str | None
+    display_type: str
     sort_order: int
+    is_featured: bool
+    is_active: bool
+    created_by: int | None
+    updated_by: int | None
     created_at: datetime
     updated_at: datetime
+    deleted_at: datetime | None
 
 
 class BranchCreate(BaseModel):

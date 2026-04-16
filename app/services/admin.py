@@ -4,6 +4,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import String, cast, func, or_, select
 from sqlalchemy.orm import Session
 
+from app.services.media import delete_media_asset_record
 from app.services.catalog import ENTITY_REGISTRY, EntityRegistration
 
 
@@ -39,6 +40,11 @@ def list_entity_records(
     model = registration.model
     query = select(model)
     count_query = select(func.count()).select_from(model)
+
+    if hasattr(model, "deleted_at"):
+        deleted_at = getattr(model, "deleted_at")
+        query = query.where(deleted_at.is_(None))
+        count_query = count_query.where(deleted_at.is_(None))
 
     for candidate, value in {
         "language_id": language_id,
@@ -113,5 +119,10 @@ def delete_entity_record(db: Session, entity_name: str, record_id: int) -> None:
     record = db.get(registration.model, record_id)
     if not record:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Record not found.")
+
+    if entity_name == "media_assets":
+        delete_media_asset_record(db=db, record=record)
+        return
+
     db.delete(record)
     db.commit()

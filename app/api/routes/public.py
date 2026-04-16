@@ -97,7 +97,7 @@ def honors(
     award_year: int | None = Query(default=None, ge=1900, le=2100),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
-    return {"items": list_honors(db=db, language_code=language_code, award_year=award_year)}
+    return list_honors(db=db, language_code=language_code, award_year=award_year)
 
 
 @router.get("/branches")
