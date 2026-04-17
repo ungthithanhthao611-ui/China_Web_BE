@@ -137,7 +137,8 @@ def update_entity_record(db: Session, entity_name: str, record_id: int, payload:
     if not record:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Record not found.")
 
-    data = registration.update_schema.model_validate(payload).model_dump(exclude_unset=True, exclude_none=True)
+    # Keep explicit null values from admin forms so users can clear optional fields.
+    data = registration.update_schema.model_validate(payload).model_dump(exclude_unset=True)
     for field_name, value in data.items():
         setattr(record, field_name, value)
 

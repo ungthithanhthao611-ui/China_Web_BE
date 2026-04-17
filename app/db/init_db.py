@@ -20,6 +20,7 @@ from app.models.taxonomy import Language, SiteSetting
 def initialize_database() -> None:
     Base.metadata.create_all(bind=engine)
     ensure_posts_schema()
+    ensure_banners_schema()
     ensure_honors_schema()
     with SessionLocal() as session:
         seed_basics(session)
@@ -124,6 +125,41 @@ def ensure_honors_schema() -> None:
             conn.execute(text("UPDATE honors SET language_id = 1 WHERE language_id IS NULL"))
             try:
                 conn.execute(text("ALTER TABLE honors ALTER COLUMN language_id SET DEFAULT 1"))
+            except Exception:
+                pass
+
+
+def ensure_banners_schema() -> None:
+    with engine.begin() as conn:
+        inspector = inspect(conn)
+        table_names = set(inspector.get_table_names())
+        if "banners" not in table_names:
+            return
+
+        column_names = {column["name"] for column in inspector.get_columns("banners")}
+        columns_to_add = [
+            ("focus_x", "DOUBLE PRECISION"),
+            ("focus_y", "DOUBLE PRECISION"),
+        ]
+
+        for column_name, column_type in columns_to_add:
+            if column_name in column_names:
+                continue
+            conn.execute(text(f"ALTER TABLE banners ADD COLUMN {column_name} {column_type}"))
+
+        refreshed_columns = {column["name"] for column in inspect(conn).get_columns("banners")}
+
+        if "focus_x" in refreshed_columns:
+            conn.execute(text("UPDATE banners SET focus_x = 50 WHERE focus_x IS NULL"))
+            try:
+                conn.execute(text("ALTER TABLE banners ALTER COLUMN focus_x SET DEFAULT 50"))
+            except Exception:
+                pass
+
+        if "focus_y" in refreshed_columns:
+            conn.execute(text("UPDATE banners SET focus_y = 50 WHERE focus_y IS NULL"))
+            try:
+                conn.execute(text("ALTER TABLE banners ALTER COLUMN focus_y SET DEFAULT 50"))
             except Exception:
                 pass
 

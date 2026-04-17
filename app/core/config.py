@@ -1,3 +1,4 @@
+import json
 from functools import lru_cache
 
 from pydantic import Field, field_validator
@@ -61,8 +62,32 @@ class Settings(BaseSettings):
     @classmethod
     def split_csv(cls, value: str | list[str]) -> list[str]:
         if isinstance(value, list):
-            return value
-        return [item.strip() for item in value.split(",") if item.strip()]
+            return [str(item).strip() for item in value if str(item).strip()]
+
+        normalized = str(value or "").strip()
+        if not normalized:
+            return []
+
+        # Support JSON array format in .env, e.g. ["http://localhost:5173","http://127.0.0.1:5173"]
+        if normalized.startswith("["):
+            try:
+                parsed = json.loads(normalized)
+                if isinstance(parsed, list):
+                    return [str(item).strip() for item in parsed if str(item).strip()]
+            except json.JSONDecodeError:
+                pass
+
+        # Fallback to CSV (legacy format)
+        items = []
+        for raw in normalized.split(","):
+            item = raw.strip().strip("'\"")
+            if item.startswith("["):
+                item = item[1:].strip()
+            if item.endswith("]"):
+                item = item[:-1].strip()
+            if item:
+                items.append(item)
+        return items
 
     @field_validator("debug", "docs_enabled", mode="before")
     @classmethod
