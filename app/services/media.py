@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from pathlib import Path
+import re
 from uuid import uuid4
 
 import cloudinary
@@ -31,6 +32,25 @@ def _asset_type_from_mime_type(mime_type: str | None) -> str:
     if mime_type == "application/pdf":
         return "document"
     return "file"
+
+
+def _slugify(value: str | None) -> str:
+    normalized = re.sub(r"[^a-z0-9]+", "-", str(value or "").strip().lower())
+    normalized = normalized.strip("-")
+    return normalized or str(uuid4())
+
+
+def _normalize_asset_folder(asset_folder: str | None) -> str | None:
+    normalized = str(asset_folder or "").strip().strip("/")
+    if not normalized:
+        return None
+
+    root_folder = settings.cloudinary_folder.strip().strip("/")
+    if root_folder and normalized.lower().startswith(f"{root_folder.lower()}/"):
+        return normalized
+    if root_folder and normalized.lower() == root_folder.lower():
+        return normalized
+    return f"{root_folder}/{normalized}" if root_folder else normalized
 
 
 def _media_response(
@@ -215,6 +235,8 @@ async def _create_cloudinary_media_asset(
     file: UploadFile,
     title: str | None = None,
     alt_text: str | None = None,
+    asset_folder: str | None = None,
+    public_id_base: str | None = None,
 ) -> dict:
     _configure_cloudinary()
 
@@ -228,13 +250,17 @@ async def _create_cloudinary_media_asset(
         )
 
     try:
+        normalized_asset_folder = _normalize_asset_folder(asset_folder)
+        public_id = _slugify(public_id_base or title or Path(file.filename or "").stem)
         upload_result = cloudinary.uploader.upload(
             raw_bytes,
-            folder=settings.cloudinary_folder,
+            asset_folder=normalized_asset_folder,
             resource_type="auto",
-            public_id=str(uuid4()),
-            use_filename=True,
+            public_id=public_id,
+            use_filename=False,
             unique_filename=False,
+            overwrite=True,
+            use_asset_folder_as_public_id_prefix=True,
             display_name=title or file.filename,
         )
     except Exception as exc:
@@ -319,6 +345,8 @@ async def create_uploaded_media_asset(
     file: UploadFile,
     title: str | None = None,
     alt_text: str | None = None,
+    asset_folder: str | None = None,
+    public_id_base: str | None = None,
 ) -> dict:
     _validate_mime_type(file.content_type)
 
@@ -329,7 +357,14 @@ async def create_uploaded_media_asset(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="MEDIA_STORAGE=cloudinary but Cloudinary credentials are incomplete.",
                 )
-            return await _create_cloudinary_media_asset(db=db, file=file, title=title, alt_text=alt_text)
+            return await _create_cloudinary_media_asset(
+                db=db,
+                file=file,
+                title=title,
+                alt_text=alt_text,
+                asset_folder=asset_folder,
+                public_id_base=public_id_base,
+            )
 
         return await _create_local_media_asset(db=db, file=file, title=title, alt_text=alt_text)
     finally:

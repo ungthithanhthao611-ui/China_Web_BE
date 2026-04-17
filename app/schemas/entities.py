@@ -456,6 +456,7 @@ class PostCreate(BaseModel):
     slug: str
     summary: str | None = None
     body: str | None = None
+    content_html: str | None = None
     published_at: datetime | None = None
     author: str | None = None
     image_id: int | None = None
@@ -471,6 +472,7 @@ class PostUpdate(BaseModel):
     slug: str | None = None
     summary: str | None = None
     body: str | None = None
+    content_html: str | None = None
     published_at: datetime | None = None
     author: str | None = None
     image_id: int | None = None
@@ -487,6 +489,7 @@ class PostRead(ORMModel):
     slug: str
     summary: str | None
     body: str | None
+    content_html: str | None
     published_at: datetime | None
     author: str | None
     image_id: int | None

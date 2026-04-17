@@ -19,9 +19,30 @@ from app.models.taxonomy import Language, SiteSetting
 
 def initialize_database() -> None:
     Base.metadata.create_all(bind=engine)
+    ensure_posts_schema()
     ensure_honors_schema()
     with SessionLocal() as session:
         seed_basics(session)
+
+
+def ensure_posts_schema() -> None:
+    with engine.begin() as conn:
+        inspector = inspect(conn)
+        table_names = set(inspector.get_table_names())
+        if "posts" not in table_names:
+            return
+
+        column_names = {column["name"] for column in inspector.get_columns("posts")}
+        columns_to_add = [
+            ("wp_post_id", "BIGINT"),
+            ("source_system", "VARCHAR(50)"),
+            ("content_html", "TEXT"),
+        ]
+
+        for column_name, column_type in columns_to_add:
+            if column_name in column_names:
+                continue
+            conn.execute(text(f"ALTER TABLE posts ADD COLUMN {column_name} {column_type}"))
 
 
 def ensure_honors_schema() -> None:

@@ -25,6 +25,9 @@ class Post(BigIntPrimaryKeyMixin, TimestampMixin, Base):
     slug: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     summary: Mapped[str | None] = mapped_column(Text)
     body: Mapped[str | None] = mapped_column(Text)
+    content_html: Mapped[str | None] = mapped_column(Text)
+    wp_post_id: Mapped[int | None] = mapped_column(index=True)
+    source_system: Mapped[str | None] = mapped_column(String(50), index=True)
     published_at: Mapped[datetime | None] = mapped_column(index=True)
     author: Mapped[str | None] = mapped_column(String(255))
     image_id: Mapped[int | None] = mapped_column(ForeignKey("media_assets.id"))
@@ -35,3 +38,4 @@ class Post(BigIntPrimaryKeyMixin, TimestampMixin, Base):
 
     category = relationship("PostCategory")
     image = relationship("MediaAsset")
+    word_document = relationship("PostDocument", back_populates="post", uselist=False)

@@ -11,6 +11,7 @@ from app.schemas.admin_navigation import (
     AdminNavigationTreeReplacePayload,
 )
 from app.schemas.post_workflow import PostImportPreview, PostSourceFetchRequest, PostSourcePreview
+from app.schemas.wordpress_sync import WordPressSyncRequest, WordPressSyncResult
 from app.services.admin import (
     create_entity_record,
     delete_entity_record,
@@ -28,6 +29,7 @@ from app.services.admin_navigation import (
 )
 from app.services.media import create_uploaded_media_asset
 from app.services.post_workflow import fetch_post_source_preview, import_post_file_preview
+from app.services.wordpress_sync import sync_wordpress_posts
 
 router = APIRouter(dependencies=[Depends(require_admin_user)])
 
@@ -90,9 +92,18 @@ async def upload_media_asset(
     file: UploadFile = File(...),
     title: str | None = Form(default=None),
     alt_text: str | None = Form(default=None),
+    asset_folder: str | None = Form(default=None),
+    public_id_base: str | None = Form(default=None),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
-    return await create_uploaded_media_asset(db=db, file=file, title=title, alt_text=alt_text)
+    return await create_uploaded_media_asset(
+        db=db,
+        file=file,
+        title=title,
+        alt_text=alt_text,
+        asset_folder=asset_folder,
+        public_id_base=public_id_base,
+    )
 
 
 @router.post('/posts/source-preview')
@@ -103,6 +114,14 @@ async def preview_post_source(payload: PostSourceFetchRequest) -> PostSourcePrev
 @router.post('/posts/import-preview')
 async def preview_post_import(file: UploadFile = File(...)) -> PostImportPreview:
     return await import_post_file_preview(file)
+
+
+@router.post("/posts/sync-wordpress")
+async def sync_posts_from_wordpress(
+    payload: WordPressSyncRequest,
+    db: Session = Depends(get_db),
+) -> WordPressSyncResult:
+    return await sync_wordpress_posts(db=db, payload=payload)
 
 
 @router.get('/{entity_name}')

@@ -2,10 +2,16 @@ from typing import Any
 
 from fastapi import HTTPException, status
 from sqlalchemy import String, cast, func, or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
+from app.core.config import settings
+from app.models.content import Banner
+from app.models.media import MediaAsset
+from app.models.news import Post
+from app.models.organization import Video
 from app.services.media import delete_media_asset_record
 from app.services.catalog import ENTITY_REGISTRY, EntityRegistration
+from app.services.wordpress_sync import delete_wordpress_post
 
 
 def get_registration(entity_name: str) -> EntityRegistration:
@@ -18,8 +24,36 @@ def get_registration(entity_name: str) -> EntityRegistration:
     return registration
 
 
-def serialize(record: Any, registration: EntityRegistration) -> dict[str, Any]:
+def _serialize_media(record: MediaAsset | None) -> dict[str, Any] | None:
+    if not record:
+        return None
+
+    registration = get_registration("media_assets")
     return registration.read_schema.model_validate(record).model_dump(mode="json")
+
+
+def _base_query_for_model(model: type):
+    query = select(model)
+
+    if model is Banner:
+        return query.options(selectinload(Banner.image))
+
+    if model is Video:
+        return query.options(selectinload(Video.thumbnail))
+
+    return query
+
+
+def serialize(record: Any, registration: EntityRegistration) -> dict[str, Any]:
+    payload = registration.read_schema.model_validate(record).model_dump(mode="json")
+
+    if isinstance(record, Banner):
+        payload["image"] = _serialize_media(getattr(record, "image", None))
+
+    if isinstance(record, Video):
+        payload["thumbnail"] = _serialize_media(getattr(record, "thumbnail", None))
+
+    return payload
 
 
 def get_admin_entity_names() -> list[str]:
@@ -38,7 +72,7 @@ def list_entity_records(
 ) -> dict[str, Any]:
     registration = get_registration(entity_name)
     model = registration.model
-    query = select(model)
+    query = _base_query_for_model(model)
     count_query = select(func.count()).select_from(model)
 
     if hasattr(model, "deleted_at"):
@@ -86,13 +120,12 @@ def create_entity_record(db: Session, entity_name: str, payload: dict[str, Any])
     record = registration.model(**data)
     db.add(record)
     db.commit()
-    db.refresh(record)
-    return serialize(record, registration)
+    return get_entity_record(db=db, entity_name=entity_name, record_id=record.id)
 
 
 def get_entity_record(db: Session, entity_name: str, record_id: int) -> dict[str, Any]:
     registration = get_registration(entity_name)
-    record = db.get(registration.model, record_id)
+    record = db.scalar(_base_query_for_model(registration.model).where(registration.model.id == record_id))
     if not record:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Record not found.")
     return serialize(record, registration)
@@ -110,8 +143,7 @@ def update_entity_record(db: Session, entity_name: str, record_id: int, payload:
 
     db.add(record)
     db.commit()
-    db.refresh(record)
-    return serialize(record, registration)
+    return get_entity_record(db=db, entity_name=entity_name, record_id=record_id)
 
 
 def delete_entity_record(db: Session, entity_name: str, record_id: int) -> None:
@@ -123,6 +155,18 @@ def delete_entity_record(db: Session, entity_name: str, record_id: int) -> None:
     if entity_name == "media_assets":
         delete_media_asset_record(db=db, record=record)
         return
+
+    if entity_name == "posts" and settings.wp_bidirectional_delete_enabled:
+        post_record: Post = record
+        is_wp_managed = (
+            str(post_record.source_system or "").strip().lower() == "wordpress"
+            or post_record.wp_post_id is not None
+        )
+        if is_wp_managed:
+            delete_wordpress_post(
+                wp_post_id=post_record.wp_post_id,
+                slug=post_record.slug,
+            )
 
     db.delete(record)
     db.commit()

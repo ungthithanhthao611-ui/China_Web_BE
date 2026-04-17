@@ -45,6 +45,13 @@ def get_language(db: Session, language_code: str) -> Language:
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No active language configured.")
 
 
+def _get_default_language(db: Session) -> Language | None:
+    default_language = db.scalar(select(Language).where(Language.is_default.is_(True), Language.status == "active"))
+    if default_language:
+        return default_language
+    return db.scalar(select(Language).where(Language.status == "active").order_by(Language.id.asc()))
+
+
 def _serialize_media(record: MediaAsset | None) -> dict[str, Any] | None:
     if not record:
         return None
@@ -199,21 +206,37 @@ def list_posts(
     limit: int,
 ) -> dict[str, Any]:
     language = get_language(db, language_code)
-    base_query = (
-        select(Post)
-        .options(selectinload(Post.image), selectinload(Post.category))
-        .where(Post.language_id == language.id, Post.status == "published")
-    )
-    if category_slug:
-        base_query = base_query.join(PostCategory).where(PostCategory.slug == category_slug)
+
+    def build_query(language_id: int):
+        query = (
+            select(Post)
+            .options(selectinload(Post.image), selectinload(Post.category))
+            .where(Post.language_id == language_id, Post.status == "published")
+        )
+        if category_slug:
+            query = query.join(PostCategory).where(PostCategory.slug == category_slug)
+        return query
+
+    base_query = build_query(language.id)
+    total = len(db.scalars(base_query).all())
+
+    if total == 0:
+        default_language = _get_default_language(db)
+        if default_language and default_language.id != language.id:
+            fallback_query = build_query(default_language.id)
+            fallback_total = len(db.scalars(fallback_query).all())
+            if fallback_total > 0:
+                base_query = fallback_query
+                total = fallback_total
 
     ordered_query = base_query.order_by(Post.published_at.desc().nullslast(), Post.id.desc())
-    total = len(db.scalars(base_query).all())
     items = db.scalars(ordered_query.offset(skip).limit(limit)).all()
 
     payload = []
     for item in items:
         data = _serialize(PostRead, item)
+        if data.get("content_html"):
+            data["body"] = data["content_html"]
         data["image"] = _serialize_media(item.image)
         data["category"] = (
             {"id": item.category.id, "name": item.category.name, "slug": item.category.slug}
@@ -232,9 +255,19 @@ def get_post_detail(db: Session, slug: str, language_code: str) -> dict[str, Any
         .where(Post.slug == slug, Post.language_id == language.id, Post.status == "published")
     )
     if not post:
+        default_language = _get_default_language(db)
+        if default_language and default_language.id != language.id:
+            post = db.scalar(
+                select(Post)
+                .options(selectinload(Post.image), selectinload(Post.category))
+                .where(Post.slug == slug, Post.language_id == default_language.id, Post.status == "published")
+            )
+    if not post:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found.")
 
     data = _serialize(PostRead, post)
+    if data.get("content_html"):
+        data["body"] = data["content_html"]
     data["image"] = _serialize_media(post.image)
     data["category"] = (
         {"id": post.category.id, "name": post.category.name, "slug": post.category.slug}
