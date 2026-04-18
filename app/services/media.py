@@ -270,7 +270,9 @@ async def _create_cloudinary_media_asset(
         ) from exc
 
     record = MediaAsset(
-        uuid=upload_result.get("public_id") or str(uuid4()),
+        # Keep DB uuid independent from Cloudinary public_id so repeated uploads
+        # with the same title/public_id do not violate uq_media_assets_uuid.
+        uuid=str(uuid4()),
         file_name=file.filename,
         url=upload_result.get("secure_url") or upload_result.get("url"),
         storage_path=upload_result.get("public_id"),
@@ -353,18 +355,30 @@ async def create_uploaded_media_asset(
     try:
         if settings.media_storage.strip().lower() == "cloudinary":
             if not _has_cloudinary_configuration():
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="MEDIA_STORAGE=cloudinary but Cloudinary credentials are incomplete.",
+                local_payload = await _create_local_media_asset(db=db, file=file, title=title, alt_text=alt_text)
+                local_payload["fallback_reason"] = "Cloudinary credentials are incomplete."
+                return local_payload
+
+            try:
+                return await _create_cloudinary_media_asset(
+                    db=db,
+                    file=file,
+                    title=title,
+                    alt_text=alt_text,
+                    asset_folder=asset_folder,
+                    public_id_base=public_id_base,
                 )
-            return await _create_cloudinary_media_asset(
-                db=db,
-                file=file,
-                title=title,
-                alt_text=alt_text,
-                asset_folder=asset_folder,
-                public_id_base=public_id_base,
-            )
+            except HTTPException as exc:
+                # Keep hard validation errors, but gracefully degrade for Cloudinary infra/config failures.
+                if exc.status_code not in {
+                    status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    status.HTTP_502_BAD_GATEWAY,
+                }:
+                    raise
+                await file.seek(0)
+                local_payload = await _create_local_media_asset(db=db, file=file, title=title, alt_text=alt_text)
+                local_payload["fallback_reason"] = str(exc.detail)
+                return local_payload
 
         return await _create_local_media_asset(db=db, file=file, title=title, alt_text=alt_text)
     finally:

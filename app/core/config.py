@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     docs_enabled: bool = True
     upload_dir: str = "uploads"
     upload_url_prefix: str = "/uploads"
-    max_upload_size_mb: int = 20
+    max_upload_size_mb: int = 50
     media_storage: str = "local"
     cloudinary_url: str = ""
     cloudinary_cloud_name: str = ""

@@ -12,7 +12,8 @@ class Video(BigIntPrimaryKeyMixin, TimestampMixin, SortOrderMixin, Base):
 
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
-    video_url: Mapped[str] = mapped_column(String(500), nullable=False)
+    # Keep this generous because CDN/transformed URLs can be long.
+    video_url: Mapped[str] = mapped_column(String(2000), nullable=False)
     thumbnail_id: Mapped[int | None] = mapped_column(ForeignKey("media_assets.id"))
     language_id: Mapped[int] = mapped_column(ForeignKey("languages.id"), nullable=False)
     status: Mapped[str] = mapped_column(String(50), default="published", index=True, nullable=False)

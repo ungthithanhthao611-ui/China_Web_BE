@@ -19,6 +19,7 @@ class MediaAsset(BigIntPrimaryKeyMixin, TimestampMixin, Base):
     size: Mapped[int | None] = mapped_column(Integer)
     alt_text: Mapped[str | None] = mapped_column(String(255))
     title: Mapped[str | None] = mapped_column(String(255))
+    uploaded_by: Mapped[int | None] = mapped_column(ForeignKey("admin_users.id"), index=True)
     status: Mapped[str] = mapped_column(String(50), default="active", index=True, nullable=False)
 
 

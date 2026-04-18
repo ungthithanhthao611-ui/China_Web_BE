@@ -95,6 +95,7 @@ class MediaAssetCreate(BaseModel):
     size: int | None = None
     alt_text: str | None = None
     title: str | None = None
+    uploaded_by: int | None = None
     status: str = "active"
 
 
@@ -110,6 +111,7 @@ class MediaAssetUpdate(BaseModel):
     size: int | None = None
     alt_text: str | None = None
     title: str | None = None
+    uploaded_by: int | None = None
     status: str | None = None
 
 
@@ -126,6 +128,7 @@ class MediaAssetRead(ORMModel):
     size: int | None
     alt_text: str | None
     title: str | None
+    uploaded_by: int | None
     status: str
     created_at: datetime
     updated_at: datetime

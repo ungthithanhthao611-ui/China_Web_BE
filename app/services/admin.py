@@ -1,14 +1,17 @@
 from typing import Any
 
 from fastapi import HTTPException, status
+from pydantic import ValidationError
 from sqlalchemy import String, cast, func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.config import settings
 from app.models.content import Banner
 from app.models.media import MediaAsset
-from app.models.news import Post
+from app.models.news import Post, PostCategory
 from app.models.organization import Video
+from app.models.projects import Project, ProjectCategory
 from app.services.media import delete_media_asset_record
 from app.services.catalog import ENTITY_REGISTRY, EntityRegistration
 from app.services.wordpress_sync import delete_wordpress_post
@@ -58,6 +61,76 @@ def serialize(record: Any, registration: EntityRegistration) -> dict[str, Any]:
 
 def get_admin_entity_names() -> list[str]:
     return sorted(ENTITY_REGISTRY.keys())
+
+
+def _format_record_label(record: Any, fallback: str = "record") -> str:
+    for field_name in ("title", "name", "slug"):
+        value = getattr(record, field_name, None)
+        if value:
+            return str(value).strip()
+    return fallback
+
+
+def _raise_delete_dependency_error(db: Session, entity_name: str, record: Any) -> None:
+    if entity_name == "post_categories":
+        posts_query = (
+            select(Post.id, Post.title, Post.slug)
+            .where(Post.category_id == record.id)
+            .order_by(Post.id.asc())
+        )
+        blocking_posts = db.execute(posts_query.limit(3)).all()
+        posts_count = db.scalar(select(func.count()).select_from(Post).where(Post.category_id == record.id)) or 0
+        child_count = db.scalar(select(func.count()).select_from(PostCategory).where(PostCategory.parent_id == record.id)) or 0
+
+        reasons: list[str] = []
+        if posts_count:
+            reasons.append(f"it is assigned to {posts_count} post{'s' if posts_count != 1 else ''}")
+        if child_count:
+            reasons.append(f"it has {child_count} child categor{'ies' if child_count != 1 else 'y'}")
+
+        if reasons:
+            label = _format_record_label(record, fallback="this category")
+            detail = f'Cannot delete Post Category "{label}" because ' + " and ".join(reasons) + "."
+
+            if blocking_posts:
+                blocking_post_labels = [
+                    f'#{post_id} "{(title or "Untitled post").strip()}" (slug: {slug or "-"})'
+                    for post_id, title, slug in blocking_posts
+                ]
+                detail += " Blocking posts: " + "; ".join(blocking_post_labels) + "."
+                if posts_count > len(blocking_posts):
+                    detail += f" And {posts_count - len(blocking_posts)} more post{'s' if posts_count - len(blocking_posts) != 1 else ''}."
+
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=detail,
+            )
+
+    if entity_name == "project_categories":
+        projects_count = db.scalar(select(func.count()).select_from(Project).where(Project.category_id == record.id)) or 0
+        child_count = db.scalar(select(func.count()).select_from(ProjectCategory).where(ProjectCategory.parent_id == record.id)) or 0
+
+        reasons: list[str] = []
+        if projects_count:
+            reasons.append(f"it is assigned to {projects_count} project{'s' if projects_count != 1 else ''}")
+        if child_count:
+            reasons.append(f"it has {child_count} child categor{'ies' if child_count != 1 else 'y'}")
+
+        if reasons:
+            label = _format_record_label(record, fallback="this category")
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f'Cannot delete Project Category "{label}" because ' + " and ".join(reasons) + ".",
+            )
+
+
+def _raise_friendly_delete_integrity_error(entity_name: str, record: Any) -> None:
+    label = _format_record_label(record)
+    entity_label = entity_name.replace("_", " ").rstrip("s") or "record"
+    raise HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail=f'Cannot delete {entity_label} "{label}" because it is still referenced by other records.',
+    )
 
 
 def list_entity_records(
@@ -116,7 +189,10 @@ def list_entity_records(
 
 def create_entity_record(db: Session, entity_name: str, payload: dict[str, Any]) -> dict[str, Any]:
     registration = get_registration(entity_name)
-    data = registration.create_schema.model_validate(payload).model_dump(exclude_none=True)
+    try:
+        data = registration.create_schema.model_validate(payload).model_dump(exclude_none=True)
+    except ValidationError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.errors()) from exc
     record = registration.model(**data)
     db.add(record)
     db.commit()
@@ -138,7 +214,10 @@ def update_entity_record(db: Session, entity_name: str, record_id: int, payload:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Record not found.")
 
     # Keep explicit null values from admin forms so users can clear optional fields.
-    data = registration.update_schema.model_validate(payload).model_dump(exclude_unset=True)
+    try:
+        data = registration.update_schema.model_validate(payload).model_dump(exclude_unset=True)
+    except ValidationError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.errors()) from exc
     for field_name, value in data.items():
         setattr(record, field_name, value)
 
@@ -169,5 +248,11 @@ def delete_entity_record(db: Session, entity_name: str, record_id: int) -> None:
                 slug=post_record.slug,
             )
 
-    db.delete(record)
-    db.commit()
+    _raise_delete_dependency_error(db=db, entity_name=entity_name, record=record)
+
+    try:
+        db.delete(record)
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        _raise_friendly_delete_integrity_error(entity_name=entity_name, record=record)

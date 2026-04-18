@@ -13,17 +13,37 @@ from app.models.content import Banner, Page, PageSection
 from app.models.media import MediaAsset
 from app.models.navigation import Menu, MenuItem
 from app.models.news import PostCategory
+from app.models.news_workflow import NewsCategory
 from app.models.organization import Contact, Honor, HonorCategory, InquirySubmission
 from app.models.taxonomy import Language, SiteSetting
 
 
 def initialize_database() -> None:
     Base.metadata.create_all(bind=engine)
+    ensure_media_schema()
     ensure_posts_schema()
     ensure_banners_schema()
     ensure_honors_schema()
     with SessionLocal() as session:
         seed_basics(session)
+
+
+def ensure_media_schema() -> None:
+    with engine.begin() as conn:
+        inspector = inspect(conn)
+        table_names = set(inspector.get_table_names())
+        if "media_assets" not in table_names:
+            return
+
+        column_names = {column["name"] for column in inspector.get_columns("media_assets")}
+        columns_to_add = [
+            ("uploaded_by", "BIGINT"),
+        ]
+
+        for column_name, column_type in columns_to_add:
+            if column_name in column_names:
+                continue
+            conn.execute(text(f"ALTER TABLE media_assets ADD COLUMN {column_name} {column_type}"))
 
 
 def ensure_posts_schema() -> None:
@@ -183,6 +203,7 @@ def seed_basics(session: Session) -> None:
 
     seed_site_settings(session=session, language_id=default_language_id)
     seed_post_categories(session=session)
+    seed_news_workflow_categories(session=session)
     if default_language_id is not None:
         media_by_key = seed_media_assets(session=session)
         seed_pages(session=session, language_id=default_language_id, media_by_key=media_by_key)
@@ -332,6 +353,30 @@ def seed_post_categories(session: Session) -> None:
         session.add(category)
         session.flush()
         categories_by_slug[seed["slug"]] = category
+
+
+def seed_news_workflow_categories(session: Session) -> None:
+    categories_seed = [
+        {
+            "name": "Corporate News",
+            "slug": "corporate-news",
+            "description": "Editorial category for company updates and milestones.",
+        },
+        {
+            "name": "Industry Dynamics",
+            "slug": "industry-dynamics",
+            "description": "Editorial category for market and industry analysis.",
+        },
+    ]
+
+    categories_by_slug = {item.slug: item for item in session.scalars(select(NewsCategory)).all()}
+    for seed in categories_seed:
+        category = categories_by_slug.get(seed["slug"])
+        if not category:
+            category = NewsCategory(slug=seed["slug"], name=seed["name"])
+        category.name = seed["name"]
+        category.description = seed["description"]
+        session.add(category)
 
 
 def seed_site_settings(session: Session, language_id: int | None) -> None:
