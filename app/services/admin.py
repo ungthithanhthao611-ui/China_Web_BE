@@ -11,7 +11,7 @@ from app.models.content import Banner
 from app.models.media import MediaAsset
 from app.models.news import Post, PostCategory
 from app.models.organization import Video
-from app.models.projects import Project, ProjectCategory
+from app.models.projects import Project, ProjectCategory, ProjectCategoryItem
 from app.services.media import delete_media_asset_record
 from app.services.catalog import ENTITY_REGISTRY, EntityRegistration
 from app.services.wordpress_sync import delete_wordpress_post
@@ -57,6 +57,20 @@ def serialize(record: Any, registration: EntityRegistration) -> dict[str, Any]:
         payload["thumbnail"] = _serialize_media(getattr(record, "thumbnail", None))
 
     return payload
+
+
+def _normalize_validation_errors(exc: ValidationError) -> list[dict[str, Any]]:
+    normalized_errors: list[dict[str, Any]] = []
+    for error in exc.errors():
+        normalized_error = dict(error)
+        ctx = normalized_error.get("ctx")
+        if isinstance(ctx, dict):
+            normalized_error["ctx"] = {
+                key: str(value) if isinstance(value, Exception) else value
+                for key, value in ctx.items()
+            }
+        normalized_errors.append(normalized_error)
+    return normalized_errors
 
 
 def get_admin_entity_names() -> list[str]:
@@ -109,12 +123,24 @@ def _raise_delete_dependency_error(db: Session, entity_name: str, record: Any) -
     if entity_name == "project_categories":
         projects_count = db.scalar(select(func.count()).select_from(Project).where(Project.category_id == record.id)) or 0
         child_count = db.scalar(select(func.count()).select_from(ProjectCategory).where(ProjectCategory.parent_id == record.id)) or 0
+        linked_count = (
+            db.scalar(
+                select(func.count())
+                .select_from(ProjectCategoryItem)
+                .where(ProjectCategoryItem.category_id == record.id)
+            )
+            or 0
+        )
 
         reasons: list[str] = []
         if projects_count:
             reasons.append(f"it is assigned to {projects_count} project{'s' if projects_count != 1 else ''}")
         if child_count:
             reasons.append(f"it has {child_count} child categor{'ies' if child_count != 1 else 'y'}")
+        if linked_count:
+            reasons.append(
+                f"it is linked in {linked_count} project-case mapping record{'s' if linked_count != 1 else ''}"
+            )
 
         if reasons:
             label = _format_record_label(record, fallback="this category")
@@ -130,6 +156,22 @@ def _raise_friendly_delete_integrity_error(entity_name: str, record: Any) -> Non
     raise HTTPException(
         status_code=status.HTTP_409_CONFLICT,
         detail=f'Cannot delete {entity_label} "{label}" because it is still referenced by other records.',
+    )
+
+
+def _raise_friendly_write_integrity_error(entity_name: str) -> None:
+    if entity_name == "project_category_items":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Project case mapping must use a unique project and a unique anchor within the same category."
+            ),
+        )
+
+    entity_label = entity_name.replace("_", " ").rstrip("s") or "record"
+    raise HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail=f"Cannot save {entity_label} because a unique field conflicts with an existing record.",
     )
 
 
@@ -192,10 +234,17 @@ def create_entity_record(db: Session, entity_name: str, payload: dict[str, Any])
     try:
         data = registration.create_schema.model_validate(payload).model_dump(exclude_none=True)
     except ValidationError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.errors()) from exc
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=_normalize_validation_errors(exc),
+        ) from exc
     record = registration.model(**data)
     db.add(record)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        _raise_friendly_write_integrity_error(entity_name)
     return get_entity_record(db=db, entity_name=entity_name, record_id=record.id)
 
 
@@ -217,12 +266,19 @@ def update_entity_record(db: Session, entity_name: str, record_id: int, payload:
     try:
         data = registration.update_schema.model_validate(payload).model_dump(exclude_unset=True)
     except ValidationError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.errors()) from exc
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=_normalize_validation_errors(exc),
+        ) from exc
     for field_name, value in data.items():
         setattr(record, field_name, value)
 
     db.add(record)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        _raise_friendly_write_integrity_error(entity_name)
     return get_entity_record(db=db, entity_name=entity_name, record_id=record_id)
 
 

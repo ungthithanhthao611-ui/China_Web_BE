@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from typing import Any
 
 from fastapi import HTTPException, status
@@ -9,7 +10,8 @@ from app.models.media import EntityMedia, MediaAsset
 from app.models.navigation import Menu, MenuItem
 from app.models.news import Post, PostCategory
 from app.models.organization import Branch, Contact, Video
-from app.models.projects import Project, ProjectCategory
+from app.models.projects import Project, ProjectCategory, ProjectCategoryItem
+from app.schemas.projects import ProjectCasePageRead
 from app.models.taxonomy import Language, SiteSetting
 from app.services.honors import list_public_honors
 from app.schemas.entities import (
@@ -74,6 +76,53 @@ def _entity_gallery(db: Session, entity_type: str, entity_id: int) -> list[dict[
             "media": _serialize_media(item.media),
         }
         for item in items
+    ]
+
+
+def _entity_media_groups(
+    db: Session,
+    entity_types: str | Iterable[str],
+    entity_ids: list[int],
+) -> dict[int, dict[str, list[dict[str, Any]]]]:
+    if not entity_ids:
+        return {}
+
+    normalized_entity_types = [entity_types] if isinstance(entity_types, str) else list(entity_types)
+    items = db.scalars(
+        select(EntityMedia)
+        .options(selectinload(EntityMedia.media))
+        .where(
+            EntityMedia.entity_type.in_(normalized_entity_types),
+            EntityMedia.entity_id.in_(entity_ids),
+        )
+        .order_by(EntityMedia.entity_id, EntityMedia.group_name, EntityMedia.sort_order, EntityMedia.id)
+    ).all()
+
+    grouped: dict[int, dict[str, list[dict[str, Any]]]] = {}
+    for item in items:
+        group_bucket = grouped.setdefault(item.entity_id, {})
+        group_bucket.setdefault(item.group_name, []).append(
+            {
+                "id": item.id,
+                "group_name": item.group_name,
+                "sort_order": item.sort_order,
+                "caption": item.caption,
+                "media": _serialize_media(item.media),
+            }
+        )
+    return grouped
+
+
+def _media_group_urls(
+    media_groups: dict[str, list[dict[str, Any]]] | None,
+    group_name: str,
+) -> list[str]:
+    if not media_groups:
+        return []
+    return [
+        item.get("media", {}).get("url")
+        for item in media_groups.get(group_name, [])
+        if item.get("media", {}).get("url")
     ]
 
 
@@ -336,6 +385,144 @@ def get_project_detail(db: Session, slug: str, language_code: str) -> dict[str, 
     data["blocks"] = _content_blocks(db, "project", project.id, language.id)
     data["gallery"] = _entity_gallery(db, "project", project.id)
     return data
+
+
+def get_project_case_page(
+    db: Session,
+    language_code: str,
+    category_id: int | None,
+) -> dict[str, Any]:
+    language = get_language(db, language_code)
+    categories = db.scalars(
+        select(ProjectCategory)
+        .where(ProjectCategory.status == "active")
+        .order_by(ProjectCategory.sort_order, ProjectCategory.id)
+    ).all()
+    if not categories:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project case categories not found.")
+
+    category_ids = [row.id for row in categories]
+    category_media_groups = _entity_media_groups(
+        db=db,
+        entity_types=["project_category", "project_categories"],
+        entity_ids=category_ids,
+    )
+
+    category_items = db.scalars(
+        select(ProjectCategoryItem)
+        .join(Project, Project.id == ProjectCategoryItem.project_id)
+        .options(
+            selectinload(ProjectCategoryItem.project).selectinload(Project.image),
+            selectinload(ProjectCategoryItem.project).selectinload(Project.hero_image),
+        )
+        .where(
+            ProjectCategoryItem.category_id.in_(category_ids),
+            Project.status == "published",
+            Project.language_id == language.id,
+        )
+        .order_by(ProjectCategoryItem.category_id, ProjectCategoryItem.sort_order, ProjectCategoryItem.id)
+    ).all()
+
+    by_category: dict[int, list[ProjectCategoryItem]] = {row.id: [] for row in categories}
+    project_ids: list[int] = []
+    for item in category_items:
+        by_category.setdefault(item.category_id, []).append(item)
+        if item.project_id not in project_ids:
+            project_ids.append(item.project_id)
+
+    project_media_groups = _entity_media_groups(
+        db=db,
+        entity_types="project",
+        entity_ids=project_ids,
+    )
+
+    def serialize_case(item: ProjectCategoryItem) -> dict[str, Any]:
+        project = item.project
+        media_groups = project_media_groups.get(project.id, {})
+        left_gallery = _media_group_urls(media_groups, "left_gallery")
+        right_gallery = _media_group_urls(media_groups, "right_gallery")
+
+        if not left_gallery:
+            if project.image and project.image.url:
+                left_gallery = [project.image.url]
+            elif project.hero_image and project.hero_image.url:
+                left_gallery = [project.hero_image.url]
+
+        if not right_gallery:
+            if project.hero_image and project.hero_image.url:
+                right_gallery = [project.hero_image.url]
+            elif left_gallery:
+                right_gallery = [left_gallery[0]]
+
+        return {
+            "anchor": item.anchor,
+            "title": project.title,
+            "summary": project.summary or "",
+            "detailHref": f"/project/{project.slug}",
+            "legacyDetailHref": None,
+            "leftGallery": left_gallery,
+            "rightGallery": right_gallery,
+            "layoutVariant": item.layout_variant or ("feature" if item.is_featured else "standard"),
+        }
+
+    category_cases: dict[int, list[dict[str, Any]]] = {}
+    for category in categories:
+        category_cases[category.id] = [serialize_case(item) for item in by_category.get(category.id, [])]
+
+    selected_category: ProjectCategory | None = None
+    if category_id is not None:
+        selected_category = next((row for row in categories if row.id == category_id), None)
+        if not selected_category:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project case category not found.")
+
+    if selected_category is None:
+        selected_category = next((row for row in categories if category_cases.get(row.id)), categories[0])
+
+    categories_payload = [
+        {
+            "id": str(row.id),
+            "name": row.name,
+            "slug": row.slug,
+            "projects": category_cases.get(row.id, []),
+        }
+        for row in categories
+    ]
+
+    hero_slides = []
+    for row in categories:
+        media_groups = category_media_groups.get(row.id, {})
+        desktop_images = _media_group_urls(media_groups, "hero_desktop")
+        mobile_images = _media_group_urls(media_groups, "hero_mobile")
+
+        category_case_items = category_cases.get(row.id, [])
+        fallback_case = category_case_items[0] if category_case_items else {}
+        fallback_left = fallback_case.get("leftGallery") if isinstance(fallback_case, dict) else []
+        fallback_right = fallback_case.get("rightGallery") if isinstance(fallback_case, dict) else []
+
+        desktop = desktop_images[0] if desktop_images else (fallback_left[0] if fallback_left else None)
+        mobile = mobile_images[0] if mobile_images else (fallback_right[0] if fallback_right else desktop)
+
+        hero_slides.append(
+            {
+                "categoryId": str(row.id),
+                "title": row.name,
+                "desktopImage": desktop,
+                "mobileImage": mobile,
+                "summary": row.description or "",
+            }
+        )
+
+    payload = {
+        "currentCategory": {
+            "id": str(selected_category.id),
+            "name": selected_category.name,
+            "slug": selected_category.slug,
+        },
+        "categories": categories_payload,
+        "heroSlides": hero_slides,
+        "cases": category_cases.get(selected_category.id, []),
+    }
+    return ProjectCasePageRead.model_validate(payload).model_dump(mode="json")
 
 
 def list_honors(db: Session, language_code: str, award_year: int | None) -> dict[str, Any]:

@@ -4,11 +4,13 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
+from app.schemas.projects import ProjectCasePageRead
 from app.services.public import (
     get_bootstrap_payload,
     get_branch_detail,
     get_page_detail,
     get_post_detail,
+    get_project_case_page,
     get_project_detail,
     list_banners,
     list_branches,
@@ -89,6 +91,32 @@ def project_detail(
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     return get_project_detail(db=db, slug=slug, language_code=language_code)
+
+
+@router.get("/project-case", response_model=ProjectCasePageRead)
+def project_case(
+    language_code: str = Query(default="en"),
+    category_id: int | None = Query(default=None, ge=1),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    return get_project_case_page(
+        db=db,
+        language_code=language_code,
+        category_id=category_id,
+    )
+
+
+@router.get("/project-case/{category_id}", response_model=ProjectCasePageRead)
+def project_case_detail(
+    category_id: int,
+    language_code: str = Query(default="en"),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    return get_project_case_page(
+        db=db,
+        language_code=language_code,
+        category_id=category_id,
+    )
 
 
 @router.get("/honors")
