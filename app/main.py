@@ -1,5 +1,4 @@
 from contextlib import asynccontextmanager
-import asyncio
 import logging
 from pathlib import Path
 
@@ -14,7 +13,6 @@ from app.api.router import api_router
 from app.core.config import settings
 from app.core.security import validate_production_security_settings
 from app.db.init_db import initialize_database
-from app.services.wordpress_sync_scheduler import wordpress_sync_scheduler_loop
 
 logging.basicConfig(
     level=getattr(logging, settings.log_level.upper(), logging.INFO),
@@ -37,24 +35,14 @@ def _to_json_safe(value):
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    scheduler_task: asyncio.Task | None = None
-    scheduler_stop_event: asyncio.Event | None = None
-
     validate_production_security_settings()
     initialize_database()
-
-    if settings.wp_auto_sync_enabled:
-        scheduler_stop_event = asyncio.Event()
-        scheduler_task = asyncio.create_task(wordpress_sync_scheduler_loop(scheduler_stop_event))
 
     logger.info("Application started in %s mode.", settings.environment)
     try:
         yield
     finally:
-        if scheduler_stop_event is not None:
-            scheduler_stop_event.set()
-        if scheduler_task is not None:
-            await scheduler_task
+        pass
 
 
 app = FastAPI(

@@ -10,8 +10,6 @@ from app.schemas.admin_navigation import (
     AdminNavigationMenuUpdate,
     AdminNavigationTreeReplacePayload,
 )
-from app.schemas.post_workflow import PostImportPreview, PostSourceFetchRequest, PostSourcePreview
-from app.schemas.wordpress_sync import WordPressSyncRequest, WordPressSyncResult
 from app.services.admin import (
     create_entity_record,
     delete_entity_record,
@@ -28,8 +26,6 @@ from app.services.admin_navigation import (
     update_navigation_menu,
 )
 from app.services.media import create_uploaded_media_asset
-from app.services.post_workflow import fetch_post_source_preview, import_post_file_preview
-from app.services.wordpress_sync import sync_wordpress_posts
 
 router = APIRouter(dependencies=[Depends(require_admin_user)])
 
@@ -104,24 +100,6 @@ async def upload_media_asset(
         asset_folder=asset_folder,
         public_id_base=public_id_base,
     )
-
-
-@router.post('/posts/source-preview')
-async def preview_post_source(payload: PostSourceFetchRequest) -> PostSourcePreview:
-    return await fetch_post_source_preview(payload)
-
-
-@router.post('/posts/import-preview')
-async def preview_post_import(file: UploadFile = File(...)) -> PostImportPreview:
-    return await import_post_file_preview(file)
-
-
-@router.post("/posts/sync-wordpress")
-async def sync_posts_from_wordpress(
-    payload: WordPressSyncRequest,
-    db: Session = Depends(get_db),
-) -> WordPressSyncResult:
-    return await sync_wordpress_posts(db=db, payload=payload)
 
 
 @router.get('/{entity_name}')
