@@ -5,6 +5,8 @@ from app.models.media import EntityMedia, MediaAsset
 from app.models.navigation import Menu, MenuItem
 from app.models.news import Post, PostCategory
 from app.models.organization import Branch, Contact, Honor, HonorCategory, Video
+from app.models.post_documents import PostDocument  # ensures PostDocument mapper is ready before Post relationship resolves
+from app.models.products import ContactInquiry, Product, ProductCategory
 from app.models.projects import Project, ProjectCategory, ProjectCategoryItem
 from app.models.taxonomy import Language, SiteSetting, Translation
 from app.schemas.entities import (
@@ -75,6 +77,17 @@ from app.schemas.entities import (
     VideoRead,
     VideoUpdate,
 )
+from app.schemas.products import (
+    InquiryCreate,
+    InquiryRead,
+    InquiryUpdate,
+    ProductCategoryCreate,
+    ProductCategoryRead,
+    ProductCategoryUpdate,
+    ProductCreate,
+    ProductRead,
+    ProductUpdate,
+)
 
 
 @dataclass(frozen=True)
@@ -128,4 +141,20 @@ ENTITY_REGISTRY: dict[str, EntityRegistration] = {
     ),
     "honors": EntityRegistration(Honor, HonorRead, HonorCreate, HonorUpdate),
     "branches": EntityRegistration(Branch, BranchRead, BranchCreate, BranchUpdate),
+    # ─── Products ─────────────────────────────────────────────────────────────
+    "product_categories": EntityRegistration(
+        ProductCategory,
+        ProductCategoryRead,
+        ProductCategoryCreate,
+        ProductCategoryUpdate,
+    ),
+    "products": EntityRegistration(Product, ProductRead, ProductCreate, ProductUpdate),
+    # ─── Inquiries ────────────────────────────────────────────────────────────
+    "inquiry_submissions": EntityRegistration(
+        ContactInquiry,
+        InquiryRead,
+        InquiryCreate,
+        InquiryUpdate,
+    ),
 }
+

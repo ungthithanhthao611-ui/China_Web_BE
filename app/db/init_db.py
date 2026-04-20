@@ -14,6 +14,7 @@ from app.models.media import MediaAsset
 from app.models.navigation import Menu, MenuItem
 from app.models.news import PostCategory
 from app.models.organization import Contact, Honor, HonorCategory
+from app.models.products import ProductCategory
 from app.models.taxonomy import Language, SiteSetting
 from app.db.seed_about_page import seed_about_page
 
@@ -30,8 +31,27 @@ def initialize_database() -> None:
     ensure_banners_schema()
     ensure_honors_schema()
     ensure_project_case_schema()
+    ensure_inquiry_schema()
     with SessionLocal() as session:
         seed_basics(session)
+
+
+def ensure_inquiry_schema() -> None:
+    with engine.begin() as conn:
+        inspector = inspect(conn)
+        table_names = set(inspector.get_table_names())
+        if "contact_inquiries" not in table_names:
+            return
+
+        column_names = {column["name"] for column in inspector.get_columns("contact_inquiries")}
+        columns_to_add = [
+            ("admin_response", "TEXT"),
+        ]
+
+        for column_name, column_type in columns_to_add:
+            if column_name in column_names:
+                continue
+            conn.execute(text(f"ALTER TABLE contact_inquiries ADD COLUMN {column_name} {column_type}"))
 
 
 def ensure_media_schema() -> None:
@@ -262,6 +282,7 @@ def seed_basics(session: Session) -> None:
         seed_honors(session=session)
         seed_contacts(session=session, language_id=default_language_id)
         seed_about_page(session=session, language_id=default_language_id)
+    seed_product_categories(session=session)
     seed_initial_admin_user(session=session)
 
     session.commit()
@@ -287,9 +308,26 @@ def seed_initial_admin_user(session: Session) -> None:
     )
 
 
+def seed_product_categories(session: Session) -> None:
+    """Tạo danh mục sản phẩm mẫu nếu chưa có."""
+    existing = session.scalar(select(ProductCategory).limit(1))
+    if existing:
+        return
+
+    categories = [
+        ProductCategory(name="Sàn Gỗ", slug="san-go", description="Sàn gỗ cao cấp, bền đẹp, phù hợp mọi không gian nội thất.", sort_order=10, is_active=True),
+        ProductCategory(name="Tường & Trần", slug="tuong-tran", description="Vật liệu ốp tường và trần thẩm mỹ cao, cách âm tốt.", sort_order=20, is_active=True),
+        ProductCategory(name="Cửa & Vách", slug="cua-vach", description="Hệ thống cửa gỗ, vách ngăn hiện đại, phong cách tối giản.", sort_order=30, is_active=True),
+        ProductCategory(name="Nội Thất", slug="noi-that", description="Nội thất gỗ tự nhiên và công nghiệp, thiết kế theo yêu cầu.", sort_order=40, is_active=True),
+        ProductCategory(name="Thiết Bị Phòng Tắm", slug="thiet-bi-phong-tam", description="Bộ sưu tập thiết bị phòng tắm cao cấp, phong cách châu Âu.", sort_order=50, is_active=True),
+        ProductCategory(name="Đèn & Chiếu Sáng", slug="den-chieu-sang", description="Hệ thống đèn chiếu sáng nghệ thuật và chức năng.", sort_order=60, is_active=True),
+    ]
+    session.add_all(categories)
+    session.flush()
 
 
 def seed_media_assets(session: Session) -> dict[str, MediaAsset]:
+
     media_seed = [
         {
             "key": "hero-home",

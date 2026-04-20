@@ -5,6 +5,7 @@ from app.models.navigation import Menu, MenuItem
 from app.models.news import Post, PostCategory
 from app.models.post_documents import PostDocument
 from app.models.organization import Branch, Contact, Honor, HonorCategory, Video
+from app.models.products import ContactInquiry, Product, ProductCategory, ProductImage
 from app.models.projects import Project, ProjectCategory, ProjectCategoryItem
 from app.models.taxonomy import Language, SiteSetting, Translation
 
@@ -13,6 +14,7 @@ __all__ = [
     "Banner",
     "Branch",
     "Contact",
+    "ContactInquiry",
     "ContentBlock",
     "ContentBlockItem",
     "EntityMedia",
@@ -27,6 +29,9 @@ __all__ = [
     "Post",
     "PostCategory",
     "PostDocument",
+    "Product",
+    "ProductCategory",
+    "ProductImage",
     "Project",
     "ProjectCategory",
     "ProjectCategoryItem",

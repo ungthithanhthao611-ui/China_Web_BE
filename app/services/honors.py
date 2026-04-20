@@ -552,10 +552,10 @@ def list_public_honors(db: Session, *, year: int | None = None) -> dict[str, Any
 
     return {
         "hero": {
-            "title": "QUALIFICATION HONOR",
-            "description": "Make customers satisfied, make employees proud, let the world recognize",
-            "background": "https://en.sinodecor.com/portal-local/ngc202304190002/cms/image/ee391405-cb7a-4434-91fa-fcf427544b97.jpg",
-            "mobile_background": "https://en.sinodecor.com/repository/portal-local/ngc202304190002/cms/image/478d7a9b-32d8-4f48-a644-7790d0ebbe19.jpeg",
+            "title": "NĂNG LỰC",
+            "description": "Hình ảnh nhà máy, công nghệ sản xuất, công suất thực tế và các chứng nhận ISO, CE.",
+            "background": "https://res.cloudinary.com/db1b15yn4/image/upload/v1776695465/width_1600_1_kqfqbl.png",
+            "mobile_background": "https://res.cloudinary.com/db1b15yn4/image/upload/v1776695465/width_1600_1_kqfqbl.png",
             "accent": "https://omo-oss-image.thefastimg.com/portal-saas/ngc202303290005/cms/image/53e45437-3eaa-453a-87e7-5d86b6f29064.png",
         },
         "sections": grouped,

@@ -2,7 +2,7 @@ from collections.abc import Iterable
 from typing import Any
 
 from fastapi import HTTPException, status
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.content import Banner, ContentBlock, ContentBlockItem, Page, PageSection
@@ -10,7 +10,9 @@ from app.models.media import EntityMedia, MediaAsset
 from app.models.navigation import Menu, MenuItem
 from app.models.news import Post, PostCategory
 from app.models.organization import Branch, Contact, Video
+from app.models.products import ContactInquiry, Product, ProductCategory, ProductImage
 from app.models.projects import Project, ProjectCategory, ProjectCategoryItem
+from app.schemas.products import InquiryCreate, ProductCategoryRead, ProductListItemRead, ProductRead
 from app.schemas.projects import ProjectCasePageRead
 from app.models.taxonomy import Language, SiteSetting
 from app.services.honors import list_public_honors
@@ -595,3 +597,128 @@ def list_videos(db: Session, language_code: str) -> list[dict[str, Any]]:
         data["thumbnail"] = _serialize_media(video.thumbnail)
         payload.append(data)
     return payload
+
+
+# ─── Products ────────────────────────────────────────────────────────────────
+
+def list_product_categories(db: Session) -> dict[str, Any]:
+    """Trả về tất cả danh mục sản phẩm active kèm product_count."""
+    categories = db.scalars(
+        select(ProductCategory)
+        .where(ProductCategory.is_active.is_(True))
+        .order_by(ProductCategory.sort_order, ProductCategory.id)
+    ).all()
+
+    # Đếm số sản phẩm active trong mỗi danh mục
+    counts_rows = db.execute(
+        select(Product.category_id, func.count(Product.id).label("cnt"))
+        .where(Product.is_active.is_(True), Product.category_id.isnot(None))
+        .group_by(Product.category_id)
+    ).all()
+    counts: dict[int, int] = {row.category_id: row.cnt for row in counts_rows}
+
+    payload = []
+    for cat in categories:
+        data = ProductCategoryRead.model_validate(cat).model_dump(mode="json")
+        data["product_count"] = counts.get(cat.id, 0)
+        payload.append(data)
+
+    return {"items": payload, "pagination": {"total": len(payload)}}
+
+
+def list_products(
+    db: Session,
+    category_slug: str | None,
+    skip: int,
+    limit: int,
+) -> dict[str, Any]:
+    base_query = (
+        select(Product)
+        .options(selectinload(Product.images), selectinload(Product.category))
+        .where(Product.is_active.is_(True))
+    )
+    if category_slug:
+        base_query = base_query.join(ProductCategory).where(ProductCategory.slug == category_slug)
+
+    total = db.scalar(select(func.count()).select_from(base_query.subquery()))
+    items = db.scalars(
+        base_query.order_by(Product.sort_order, Product.id).offset(skip).limit(limit)
+    ).all()
+
+    payload = []
+    for product in items:
+        data = ProductListItemRead.model_validate(product).model_dump(mode="json")
+        data["category_name"] = product.category.name if product.category else None
+        data["images"] = [
+            {"url": img.url, "alt": img.alt, "sort_order": img.sort_order}
+            for img in product.images
+        ]
+        payload.append(data)
+
+    return {"items": payload, "pagination": {"skip": skip, "limit": limit, "total": total or 0}}
+
+
+def get_product_detail(db: Session, slug: str) -> dict[str, Any]:
+    product = db.scalar(
+        select(Product)
+        .options(selectinload(Product.images), selectinload(Product.category))
+        .where(Product.slug == slug, Product.is_active.is_(True))
+    )
+    if not product:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found.")
+
+    data = ProductRead.model_validate(product).model_dump(mode="json")
+    data["category_name"] = product.category.name if product.category else None
+    data["images"] = [
+        {"url": img.url, "alt": img.alt, "sort_order": img.sort_order}
+        for img in product.images
+    ]
+
+    # Related products cùng category
+    related: list[dict[str, Any]] = []
+    if product.category_id:
+        related_products = db.scalars(
+            select(Product)
+            .options(selectinload(Product.images))
+            .where(
+                Product.category_id == product.category_id,
+                Product.id != product.id,
+                Product.is_active.is_(True),
+            )
+            .order_by(Product.sort_order, Product.id)
+            .limit(4)
+        ).all()
+        for rel in related_products:
+            rel_data = ProductListItemRead.model_validate(rel).model_dump(mode="json")
+            rel_data["images"] = [
+                {"url": img.url, "alt": img.alt} for img in rel.images
+            ]
+            related.append(rel_data)
+
+    data["related_products"] = related
+    return data
+
+
+# ─── Contact Inquiry ─────────────────────────────────────────────────────────
+
+def create_inquiry(db: Session, payload: InquiryCreate) -> dict[str, Any]:
+    inquiry = ContactInquiry(
+        full_name=payload.full_name,
+        email=payload.email,
+        phone=payload.phone,
+        company=payload.company,
+        subject=payload.subject,
+        message=payload.message,
+        source_page=payload.source_page,
+        product_id=payload.product_id,
+        status="new",
+    )
+    db.add(inquiry)
+    db.commit()
+    db.refresh(inquiry)
+    return {
+        "success": True,
+        "id": inquiry.id,
+        "message": "Yêu cầu đã được ghi nhận. Chúng tôi sẽ liên hệ trong vòng 24 giờ.",
+    }
+

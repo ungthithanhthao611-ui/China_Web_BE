@@ -11,6 +11,7 @@ from app.models.content import Banner, Page, PageSection
 from app.models.media import MediaAsset
 from app.models.news import Post, PostCategory
 from app.models.organization import Video
+from app.models.products import Product, ProductImage
 from app.models.projects import Project, ProjectCategory, ProjectCategoryItem
 from app.services.media import delete_media_asset_record
 from app.services.catalog import ENTITY_REGISTRY, EntityRegistration
@@ -126,6 +127,9 @@ def _base_query_for_model(model: type):
     if model is Video:
         return query.options(selectinload(Video.thumbnail))
 
+    if model is Product:
+        return query.options(selectinload(Product.images), selectinload(Product.category))
+
     return query
 
 
@@ -138,8 +142,25 @@ def serialize(db: Session, record: Any, registration: EntityRegistration) -> dic
     if isinstance(record, Video):
         payload["thumbnail"] = _serialize_media(getattr(record, "thumbnail", None))
 
+    if isinstance(record, Product):
+        payload["gallery_urls"] = "\n".join(
+            [img.url for img in sorted(getattr(record, "images", []) or [], key=lambda item: (item.sort_order, item.id))]
+        )
+        payload["category_name"] = record.category.name if getattr(record, "category", None) else None
+
     payload = _stringify_project_case_ids(registration.model.__tablename__, payload)
     return _decorate_project_case_admin_payload(db, registration.model.__tablename__, record, payload)
+
+
+def _sync_product_images(db: Session, product: Product, gallery_urls: str | None) -> None:
+    product.images.clear()
+    urls = [
+        line.strip()
+        for line in str(gallery_urls or "").replace("\r", "\n").split("\n")
+        if line.strip()
+    ]
+    for index, url in enumerate(urls):
+        product.images.append(ProductImage(url=url, alt=product.name, sort_order=index))
 
 
 def _normalize_validation_errors(exc: ValidationError) -> list[dict[str, Any]]:
@@ -337,10 +358,18 @@ def create_entity_record(db: Session, entity_name: str, payload: dict[str, Any])
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=_normalize_validation_errors(exc),
         ) from exc
+    product_gallery_urls = None
+    if entity_name == "products":
+        product_gallery_urls = data.pop("gallery_urls", None)
+
     record = registration.model(**data)
     db.add(record)
     try:
         db.commit()
+        if entity_name == "products" and product_gallery_urls is not None:
+            _sync_product_images(db, record, product_gallery_urls)
+            db.add(record)
+            db.commit()
     except IntegrityError:
         db.rollback()
         _raise_friendly_write_integrity_error(entity_name)
@@ -369,8 +398,15 @@ def update_entity_record(db: Session, entity_name: str, record_id: int, payload:
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=_normalize_validation_errors(exc),
         ) from exc
+    product_gallery_urls = None
+    if entity_name == "products":
+        product_gallery_urls = data.pop("gallery_urls", None)
+
     for field_name, value in data.items():
         setattr(record, field_name, value)
+
+    if entity_name == "products" and product_gallery_urls is not None:
+        _sync_product_images(db, record, product_gallery_urls)
 
     db.add(record)
     try:

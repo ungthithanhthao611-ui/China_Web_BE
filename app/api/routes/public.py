@@ -4,12 +4,15 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
+from app.schemas.products import InquiryCreate
 from app.schemas.projects import ProjectCasePageRead
 from app.services.public import (
+    create_inquiry,
     get_bootstrap_payload,
     get_branch_detail,
     get_page_detail,
     get_post_detail,
+    get_product_detail,
     get_project_case_page,
     get_project_detail,
     list_banners,
@@ -17,6 +20,8 @@ from app.services.public import (
     list_contacts,
     list_honors,
     list_posts,
+    list_product_categories,
+    list_products,
     list_projects,
     list_videos,
 )
@@ -154,3 +159,29 @@ def contacts(language_code: str = Query(default="en"), db: Session = Depends(get
 @router.get("/videos")
 def videos(language_code: str = Query(default="en"), db: Session = Depends(get_db)) -> dict[str, Any]:
     return {"items": list_videos(db=db, language_code=language_code)}
+
+
+@router.get("/product-categories")
+def product_categories(db: Session = Depends(get_db)) -> dict[str, Any]:
+    return list_product_categories(db=db)
+
+
+@router.get("/products")
+def products(
+    category_slug: str | None = Query(default=None),
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=12, ge=1, le=100),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    return list_products(db=db, category_slug=category_slug, skip=skip, limit=limit)
+
+
+@router.get("/products/{slug}")
+def product_detail(slug: str, db: Session = Depends(get_db)) -> dict[str, Any]:
+    return get_product_detail(db=db, slug=slug)
+
+
+@router.post("/inquiries", status_code=201)
+def submit_inquiry(payload: InquiryCreate, db: Session = Depends(get_db)) -> dict[str, Any]:
+    return create_inquiry(db=db, payload=payload)
+

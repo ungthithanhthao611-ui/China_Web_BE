@@ -654,7 +654,7 @@ class VideoCreate(BaseModel):
     description: str | None = None
     video_url: str
     thumbnail_id: int | None = None
-    language_id: int
+    language_id: int = 1
     sort_order: int = 0
     status: str = "published"
 
