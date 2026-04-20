@@ -46,8 +46,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 Swagger:
 
 - `http://localhost:8000/docs`
-
-## Admin token
+- Admin token
 
 Admin CMS dùng đăng nhập username/password:
 

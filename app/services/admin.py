@@ -14,7 +14,11 @@ from app.models.organization import Video
 from app.models.projects import Project, ProjectCategory, ProjectCategoryItem
 from app.services.media import delete_media_asset_record
 from app.services.catalog import ENTITY_REGISTRY, EntityRegistration
-from app.services.wordpress_sync import delete_wordpress_post
+
+try:
+    from app.services.wordpress_sync import delete_wordpress_post
+except ModuleNotFoundError:
+    delete_wordpress_post = None
 
 
 def get_registration(entity_name: str) -> EntityRegistration:
@@ -393,7 +397,7 @@ def delete_entity_record(db: Session, entity_name: str, record_id: int) -> None:
             str(post_record.source_system or "").strip().lower() == "wordpress"
             or post_record.wp_post_id is not None
         )
-        if is_wp_managed:
+        if is_wp_managed and delete_wordpress_post:
             delete_wordpress_post(
                 wp_post_id=post_record.wp_post_id,
                 slug=post_record.slug,

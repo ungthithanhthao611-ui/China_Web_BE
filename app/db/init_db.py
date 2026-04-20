@@ -13,10 +13,14 @@ from app.models.content import Banner, ContentBlock, ContentBlockItem, Page, Pag
 from app.models.media import MediaAsset
 from app.models.navigation import Menu, MenuItem
 from app.models.news import PostCategory
-from app.models.news_workflow import NewsCategory
 from app.models.organization import Contact, Honor, HonorCategory
 from app.models.taxonomy import Language, SiteSetting
 from app.db.seed_about_page import seed_about_page
+
+try:
+    from app.models.news_workflow import NewsCategory
+except ModuleNotFoundError:
+    NewsCategory = None
 
 
 def initialize_database() -> None:
@@ -248,7 +252,8 @@ def seed_basics(session: Session) -> None:
 
     seed_site_settings(session=session, language_id=default_language_id)
     seed_post_categories(session=session)
-    seed_news_workflow_categories(session=session)
+    if NewsCategory is not None:
+        seed_news_workflow_categories(session=session)
     if default_language_id is not None:
         media_by_key = seed_media_assets(session=session)
         seed_pages(session=session, language_id=default_language_id, media_by_key=media_by_key)
@@ -401,6 +406,9 @@ def seed_post_categories(session: Session) -> None:
 
 
 def seed_news_workflow_categories(session: Session) -> None:
+    if NewsCategory is None:
+        return
+
     categories_seed = [
         {
             "name": "Corporate News",
