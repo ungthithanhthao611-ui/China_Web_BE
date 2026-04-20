@@ -459,7 +459,7 @@ def get_project_case_page(
             "title": project.title,
             "summary": project.summary or "",
             "detailHref": f"/project/{project.slug}",
-            "legacyDetailHref": None,
+            "legacyDetailHref": project.legacy_detail_href,
             "leftGallery": left_gallery,
             "rightGallery": right_gallery,
             "layoutVariant": item.layout_variant or ("feature" if item.is_featured else "standard"),
@@ -483,7 +483,6 @@ def get_project_case_page(
             "id": str(row.id),
             "name": row.name,
             "slug": row.slug,
-            "projects": category_cases.get(row.id, []),
         }
         for row in categories
     ]

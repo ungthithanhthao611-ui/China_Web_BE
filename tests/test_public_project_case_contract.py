@@ -32,6 +32,8 @@ def _seed_project_case_contract_fixture(client, admin_headers: dict[str, str]) -
             "summary": "W hotel summary",
             "language_id": 1,
             "status": "published",
+            "legacy_detail_id": "1676516550370418688",
+            "legacy_detail_href": "/project_detail/1676516550370418688.html",
         },
     )
     project_two = _create_entity(
@@ -90,7 +92,7 @@ def test_project_case_contract_is_minimal_and_stable(client, admin_headers: dict
     data = response.json()
     assert set(data.keys()) == {"currentCategory", "categories", "heroSlides", "cases"}
     assert set(data["currentCategory"].keys()) == {"id", "name", "slug"}
-    assert set(data["categories"][0].keys()) == {"id", "name", "slug", "projects"}
+    assert set(data["categories"][0].keys()) == {"id", "name", "slug"}
     assert set(data["heroSlides"][0].keys()) == {"categoryId", "title", "desktopImage", "mobileImage", "summary"}
     assert set(data["cases"][0].keys()) == {
         "anchor",
@@ -105,9 +107,7 @@ def test_project_case_contract_is_minimal_and_stable(client, admin_headers: dict
 
     assert [item["anchor"] for item in data["cases"]] == ["ctn2", "ctn3"]
     assert data["cases"][0]["detailHref"] == "/project/w-hotel"
-    assert data["cases"][0]["legacyDetailHref"] is None
-    assert data["categories"][0]["projects"][0]["anchor"] == "ctn2"
-    assert data["categories"][0]["projects"][1]["anchor"] == "ctn3"
+    assert data["cases"][0]["legacyDetailHref"] == "/project_detail/1676516550370418688.html"
 
 
 def test_project_case_query_endpoint_matches_path_endpoint(client, admin_headers: dict[str, str]) -> None:

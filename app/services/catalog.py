@@ -4,8 +4,8 @@ from app.models.content import Banner, ContentBlock, ContentBlockItem, Page, Pag
 from app.models.media import EntityMedia, MediaAsset
 from app.models.navigation import Menu, MenuItem
 from app.models.news import Post, PostCategory
-from app.models.organization import Branch, Contact, Honor, HonorCategory, InquirySubmission, Video
-from app.models.projects import Project, ProjectCategory
+from app.models.organization import Branch, Contact, Honor, HonorCategory, Video
+from app.models.projects import Project, ProjectCategory, ProjectCategoryItem
 from app.models.taxonomy import Language, SiteSetting, Translation
 from app.schemas.entities import (
     BannerCreate,
@@ -32,9 +32,6 @@ from app.schemas.entities import (
     HonorCategoryUpdate,
     HonorRead,
     HonorUpdate,
-    InquirySubmissionCreate,
-    InquirySubmissionRead,
-    InquirySubmissionUpdate,
     LanguageCreate,
     LanguageRead,
     LanguageUpdate,
@@ -60,6 +57,9 @@ from app.schemas.entities import (
     PostRead,
     PostUpdate,
     ProjectCategoryCreate,
+    ProjectCategoryItemCreate,
+    ProjectCategoryItemRead,
+    ProjectCategoryItemUpdate,
     ProjectCategoryRead,
     ProjectCategoryUpdate,
     ProjectCreate,
@@ -112,6 +112,12 @@ ENTITY_REGISTRY: dict[str, EntityRegistration] = {
         ProjectCategoryUpdate,
     ),
     "projects": EntityRegistration(Project, ProjectRead, ProjectCreate, ProjectUpdate),
+    "project_category_items": EntityRegistration(
+        ProjectCategoryItem,
+        ProjectCategoryItemRead,
+        ProjectCategoryItemCreate,
+        ProjectCategoryItemUpdate,
+    ),
     "videos": EntityRegistration(Video, VideoRead, VideoCreate, VideoUpdate),
     "contacts": EntityRegistration(Contact, ContactRead, ContactCreate, ContactUpdate),
     "honor_categories": EntityRegistration(
@@ -122,10 +128,4 @@ ENTITY_REGISTRY: dict[str, EntityRegistration] = {
     ),
     "honors": EntityRegistration(Honor, HonorRead, HonorCreate, HonorUpdate),
     "branches": EntityRegistration(Branch, BranchRead, BranchCreate, BranchUpdate),
-    "inquiry_submissions": EntityRegistration(
-        InquirySubmission,
-        InquirySubmissionRead,
-        InquirySubmissionCreate,
-        InquirySubmissionUpdate,
-    ),
 }

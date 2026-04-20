@@ -1,7 +1,29 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr, field_validator, model_validator
+
+
+def _normalize_coordinate_input(value: Any, field_name: str) -> str | None:
+    if value is None:
+        return None
+
+    text = str(value).strip()
+    if not text:
+        return None
+
+    try:
+        parsed = float(text)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{field_name} must be a valid number.") from exc
+
+    return str(parsed)
+
+
+def _validate_coordinate_range(value: str, field_name: str, min_value: float, max_value: float) -> None:
+    parsed = float(value)
+    if parsed < min_value or parsed > max_value:
+        raise ValueError(f"{field_name} must be between {min_value} and {max_value}.")
 
 
 class ORMModel(BaseModel):
@@ -554,6 +576,8 @@ class ProjectCreate(BaseModel):
     status: str = "published"
     meta_title: str | None = None
     meta_description: str | None = None
+    legacy_detail_id: str | None = None
+    legacy_detail_href: str | None = None
 
 
 class ProjectUpdate(BaseModel):
@@ -570,6 +594,8 @@ class ProjectUpdate(BaseModel):
     status: str | None = None
     meta_title: str | None = None
     meta_description: str | None = None
+    legacy_detail_id: str | None = None
+    legacy_detail_href: str | None = None
 
 
 class ProjectRead(ORMModel):
@@ -587,6 +613,38 @@ class ProjectRead(ORMModel):
     status: str
     meta_title: str | None
     meta_description: str | None
+    legacy_detail_id: str | None
+    legacy_detail_href: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ProjectCategoryItemCreate(BaseModel):
+    category_id: int
+    project_id: int
+    sort_order: int = 0
+    anchor: str
+    is_featured: bool = False
+    layout_variant: str = "feature"
+
+
+class ProjectCategoryItemUpdate(BaseModel):
+    category_id: int | None = None
+    project_id: int | None = None
+    sort_order: int | None = None
+    anchor: str | None = None
+    is_featured: bool | None = None
+    layout_variant: str | None = None
+
+
+class ProjectCategoryItemRead(ORMModel):
+    id: int
+    category_id: int
+    project_id: int
+    sort_order: int
+    anchor: str
+    is_featured: bool
+    layout_variant: str
     created_at: datetime
     updated_at: datetime
 
@@ -632,11 +690,33 @@ class ContactCreate(BaseModel):
     phone: str | None = None
     email: EmailStr | None = None
     map_url: str | None = None
-    latitude: str | None = None
-    longitude: str | None = None
+    latitude: str
+    longitude: str
     branch_id: int | None = None
     is_primary: bool = False
     language_id: int
+
+    @field_validator("latitude", mode="before")
+    @classmethod
+    def normalize_latitude(cls, value: Any) -> str:
+        normalized = _normalize_coordinate_input(value, "Latitude")
+        if normalized is None:
+            raise ValueError("Latitude is required.")
+        return normalized
+
+    @field_validator("longitude", mode="before")
+    @classmethod
+    def normalize_longitude(cls, value: Any) -> str:
+        normalized = _normalize_coordinate_input(value, "Longitude")
+        if normalized is None:
+            raise ValueError("Longitude is required.")
+        return normalized
+
+    @model_validator(mode="after")
+    def validate_coordinates(self):
+        _validate_coordinate_range(self.latitude, "Latitude", -90.0, 90.0)
+        _validate_coordinate_range(self.longitude, "Longitude", -180.0, 180.0)
+        return self
 
 
 class ContactUpdate(BaseModel):
@@ -652,6 +732,27 @@ class ContactUpdate(BaseModel):
     branch_id: int | None = None
     is_primary: bool | None = None
     language_id: int | None = None
+
+    @field_validator("latitude", mode="before")
+    @classmethod
+    def normalize_latitude(cls, value: Any) -> str | None:
+        return _normalize_coordinate_input(value, "Latitude")
+
+    @field_validator("longitude", mode="before")
+    @classmethod
+    def normalize_longitude(cls, value: Any) -> str | None:
+        return _normalize_coordinate_input(value, "Longitude")
+
+    @model_validator(mode="after")
+    def validate_coordinates(self):
+        if self.latitude is None:
+            raise ValueError("Latitude is required.")
+        if self.longitude is None:
+            raise ValueError("Longitude is required.")
+
+        _validate_coordinate_range(self.latitude, "Latitude", -90.0, 90.0)
+        _validate_coordinate_range(self.longitude, "Longitude", -180.0, 180.0)
+        return self
 
 
 class ContactRead(ORMModel):
@@ -823,41 +924,5 @@ class BranchRead(ORMModel):
     hero_image_id: int | None
     meta_title: str | None
     meta_description: str | None
-    created_at: datetime
-    updated_at: datetime
-
-
-class InquirySubmissionCreate(BaseModel):
-    full_name: str
-    email: EmailStr
-    phone: str | None = None
-    company: str | None = None
-    subject: str | None = None
-    message: str
-    source_page: str | None = None
-    status: str = "new"
-
-
-class InquirySubmissionUpdate(BaseModel):
-    full_name: str | None = None
-    email: EmailStr | None = None
-    phone: str | None = None
-    company: str | None = None
-    subject: str | None = None
-    message: str | None = None
-    source_page: str | None = None
-    status: str | None = None
-
-
-class InquirySubmissionRead(ORMModel):
-    id: int
-    full_name: str
-    email: EmailStr
-    phone: str | None
-    company: str | None
-    subject: str | None
-    message: str
-    source_page: str | None
-    status: str
     created_at: datetime
     updated_at: datetime

@@ -100,16 +100,3 @@ class Honor(BigIntPrimaryKeyMixin, TimestampMixin, SortOrderMixin, Base):
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
 
     category = relationship("HonorCategory", back_populates="honors")
-
-
-class InquirySubmission(BigIntPrimaryKeyMixin, TimestampMixin, Base):
-    __tablename__ = "inquiry_submissions"
-
-    full_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    email: Mapped[str] = mapped_column(String(150), nullable=False, index=True)
-    phone: Mapped[str | None] = mapped_column(String(100))
-    company: Mapped[str | None] = mapped_column(String(255))
-    subject: Mapped[str | None] = mapped_column(String(255))
-    message: Mapped[str] = mapped_column(Text, nullable=False)
-    source_page: Mapped[str | None] = mapped_column(String(255))
-    status: Mapped[str] = mapped_column(String(50), default="new", index=True, nullable=False)

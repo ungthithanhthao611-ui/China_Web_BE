@@ -5,8 +5,8 @@ from app.models.navigation import Menu, MenuItem
 from app.models.news import Post, PostCategory
 from app.models.news_workflow import NewsCategory, NewsPost, NewsPostCategory, NewsPostVersion, SourceImportJob
 from app.models.post_documents import PostDocument
-from app.models.organization import Branch, Contact, Honor, HonorCategory, InquirySubmission, Video
-from app.models.projects import Project, ProjectCategory
+from app.models.organization import Branch, Contact, Honor, HonorCategory, Video
+from app.models.projects import Project, ProjectCategory, ProjectCategoryItem
 from app.models.taxonomy import Language, SiteSetting, Translation
 
 __all__ = [
@@ -19,7 +19,6 @@ __all__ = [
     "EntityMedia",
     "Honor",
     "HonorCategory",
-    "InquirySubmission",
     "Language",
     "MediaAsset",
     "Menu",
@@ -36,6 +35,7 @@ __all__ = [
     "PostDocument",
     "Project",
     "ProjectCategory",
+    "ProjectCategoryItem",
     "SiteSetting",
     "Translation",
     "Video",

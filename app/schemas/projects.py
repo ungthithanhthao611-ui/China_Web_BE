@@ -20,7 +20,6 @@ class ProjectCaseCategoryRead(StrictSchema):
     id: str
     name: str
     slug: str
-    projects: list[ProjectCaseItemRead] = Field(default_factory=list)
 
 
 class ProjectCaseCurrentCategoryRead(StrictSchema):

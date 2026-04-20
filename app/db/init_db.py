@@ -9,13 +9,14 @@ from app.core.config import settings
 from app.core.security import hash_password
 from app.models.admin import AdminUser
 from app.models.base import Base
-from app.models.content import Banner, Page, PageSection
+from app.models.content import Banner, ContentBlock, ContentBlockItem, Page, PageSection
 from app.models.media import MediaAsset
 from app.models.navigation import Menu, MenuItem
 from app.models.news import PostCategory
 from app.models.news_workflow import NewsCategory
-from app.models.organization import Contact, Honor, HonorCategory, InquirySubmission
+from app.models.organization import Contact, Honor, HonorCategory
 from app.models.taxonomy import Language, SiteSetting
+from app.db.seed_about_page import seed_about_page
 
 
 def initialize_database() -> None:
@@ -24,6 +25,7 @@ def initialize_database() -> None:
     ensure_posts_schema()
     ensure_banners_schema()
     ensure_honors_schema()
+    ensure_project_case_schema()
     with SessionLocal() as session:
         seed_basics(session)
 
@@ -184,6 +186,49 @@ def ensure_banners_schema() -> None:
                 pass
 
 
+def ensure_project_case_schema() -> None:
+    with engine.begin() as conn:
+        inspector = inspect(conn)
+        table_names = set(inspector.get_table_names())
+        if "projects" not in table_names:
+            return
+
+        column_names = {column["name"] for column in inspector.get_columns("projects")}
+        columns_to_add = [
+            ("legacy_detail_id", "VARCHAR(32)"),
+            ("legacy_detail_href", "VARCHAR(500)"),
+        ]
+
+        for column_name, column_type in columns_to_add:
+            if column_name in column_names:
+                continue
+            conn.execute(text(f"ALTER TABLE projects ADD COLUMN {column_name} {column_type}"))
+
+        refreshed_columns = {column["name"] for column in inspect(conn).get_columns("projects")}
+
+        if "legacy_detail_id" in refreshed_columns and "meta_title" in refreshed_columns:
+            conn.execute(
+                text(
+                    "UPDATE projects "
+                    "SET legacy_detail_id = REPLACE(meta_title, 'legacy-detail:', '') "
+                    "WHERE legacy_detail_id IS NULL "
+                    "AND meta_title IS NOT NULL "
+                    "AND meta_title LIKE 'legacy-detail:%'"
+                )
+            )
+
+        if "legacy_detail_href" in refreshed_columns and "meta_description" in refreshed_columns:
+            conn.execute(
+                text(
+                    "UPDATE projects "
+                    "SET legacy_detail_href = meta_description "
+                    "WHERE legacy_detail_href IS NULL "
+                    "AND meta_description IS NOT NULL "
+                    "AND meta_description LIKE '%/project_detail/%'"
+                )
+            )
+
+
 def seed_basics(session: Session) -> None:
     languages = session.scalars(select(Language)).all()
     if not languages:
@@ -211,7 +256,7 @@ def seed_basics(session: Session) -> None:
         seed_navigation(session=session, language_id=default_language_id)
         seed_honors(session=session)
         seed_contacts(session=session, language_id=default_language_id)
-        seed_inquiries(session=session)
+        seed_about_page(session=session, language_id=default_language_id)
     seed_initial_admin_user(session=session)
 
     session.commit()
@@ -450,35 +495,6 @@ def seed_site_settings(session: Session, language_id: int | None) -> None:
 def seed_pages(session: Session, language_id: int, media_by_key: dict[str, MediaAsset]) -> None:
     pages_seed = [
         {
-            "slug": "about/company-introduction",
-            "title": "Company Introduction",
-            "summary": "A concise introduction to China Decor's positioning, heritage, and integrated service capability.",
-            "body": "China Decor delivers integrated design and fit-out services for premium commercial, hospitality, and public-sector environments across China.",
-            "page_type": "about",
-            "status": "published",
-            "meta_title": "About China Decor",
-            "meta_description": "Learn about China Decor, our heritage, capabilities, and premium project delivery approach.",
-            "sort_order": 10,
-            "sections": [
-                {
-                    "anchor": "page1",
-                    "title": "Who We Are",
-                    "content": "China Decor is a corporate-focused interior and construction brand delivering turnkey spatial solutions with a strong emphasis on execution quality, design thinking, and reliable coordination.",
-                    "image_id": media_by_key["about-section"].id,
-                    "section_type": "intro",
-                    "sort_order": 10,
-                },
-                {
-                    "anchor": "page2",
-                    "title": "What We Deliver",
-                    "content": "We provide integrated services spanning strategy, design, engineering coordination, material integration, site execution, and final handover for premium-use spaces.",
-                    "image_id": media_by_key["hero-home"].id,
-                    "section_type": "capability",
-                    "sort_order": 20,
-                },
-            ],
-        },
-        {
             "slug": "contact",
             "title": "Contact Us",
             "summary": "Reach China Decor through our headquarters, hotline, email, or inquiry form.",
@@ -530,6 +546,7 @@ def seed_pages(session: Session, language_id: int, media_by_key: dict[str, Media
         },
     ]
 
+
     pages_by_slug = {
         (page.slug, page.language_id): page
         for page in session.scalars(select(Page).where(Page.language_id == language_id)).all()
@@ -571,6 +588,13 @@ def seed_pages(session: Session, language_id: int, media_by_key: dict[str, Media
             section.section_type = section_seed["section_type"]
             section.sort_order = section_seed["sort_order"]
             session.add(section)
+
+    legacy_about_page = session.scalar(
+        select(Page).where(Page.slug == "about/company-introduction", Page.language_id == language_id)
+    )
+    if legacy_about_page:
+        session.delete(legacy_about_page)
+
 
 
 def seed_banners(session: Session, language_id: int, media_by_key: dict[str, MediaAsset]) -> None:
@@ -896,51 +920,6 @@ def seed_contacts(session: Session, language_id: int) -> None:
             language_id=language_id,
         )
     )
-
-
-def seed_inquiries(session: Session) -> None:
-    inquiries_seed = [
-        {
-            "full_name": "Liu Jian",
-            "email": "liu.jian@example.com",
-            "phone": "+86 13800001234",
-            "company": "Beijing Urban Space Group",
-            "subject": "Head office lobby renovation inquiry",
-            "message": "We need an initial consultation for a premium office lobby renovation project scheduled for Q3.",
-            "source_page": "/contact",
-            "status": "new",
-        },
-        {
-            "full_name": "Emma Carter",
-            "email": "emma.carter@example.com",
-            "phone": "+44 7700 900123",
-            "company": "Carter Hospitality Advisory",
-            "subject": "Partnership for hospitality fit-out project",
-            "message": "Our team is exploring a China-based delivery partner for a hospitality refurbishment program and would like capability materials.",
-            "source_page": "/contact",
-            "status": "processing",
-        },
-    ]
-
-    existing_records = {
-        (item.email, item.subject or ""): item for item in session.scalars(select(InquirySubmission)).all()
-    }
-
-    for inquiry_seed in inquiries_seed:
-        key = (inquiry_seed["email"], inquiry_seed["subject"] or "")
-        record = existing_records.get(key)
-        if not record:
-            record = InquirySubmission(email=inquiry_seed["email"], message=inquiry_seed["message"], full_name=inquiry_seed["full_name"])
-
-        record.full_name = inquiry_seed["full_name"]
-        record.email = inquiry_seed["email"]
-        record.phone = inquiry_seed["phone"]
-        record.company = inquiry_seed["company"]
-        record.subject = inquiry_seed["subject"]
-        record.message = inquiry_seed["message"]
-        record.source_page = inquiry_seed["source_page"]
-        record.status = inquiry_seed["status"]
-        session.add(record)
 
 
 def seed_navigation(session: Session, language_id: int) -> None:

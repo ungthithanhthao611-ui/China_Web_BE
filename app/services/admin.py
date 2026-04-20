@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.config import settings
-from app.models.content import Banner
+from app.models.content import Banner, Page, PageSection
 from app.models.media import MediaAsset
 from app.models.news import Post, PostCategory
 from app.models.organization import Video
@@ -35,6 +35,84 @@ def _serialize_media(record: MediaAsset | None) -> dict[str, Any] | None:
     return registration.read_schema.model_validate(record).model_dump(mode="json")
 
 
+def _stringify_project_case_ids(entity_name: str, payload: dict[str, Any]) -> dict[str, Any]:
+    fields_to_stringify: tuple[str, ...] = ()
+
+    if entity_name == "project_categories":
+        fields_to_stringify = ("id", "parent_id")
+    elif entity_name == "projects":
+        fields_to_stringify = ("category_id",)
+    elif entity_name == "project_category_items":
+        fields_to_stringify = ("category_id",)
+    elif entity_name == "entity_media" and str(payload.get("entity_type") or "").strip() in {
+        "project_category",
+        "project_categories",
+    }:
+        fields_to_stringify = ("entity_id",)
+
+    for field_name in fields_to_stringify:
+        value = payload.get(field_name)
+        if value is None or value == "":
+            continue
+        payload[field_name] = str(value)
+
+    return payload
+
+
+def _decorate_project_case_admin_payload(
+    db: Session,
+    entity_name: str,
+    record: Any,
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    if entity_name == "page_sections":
+        page = db.get(Page, getattr(record, "page_id", None)) if getattr(record, "page_id", None) else None
+        if page:
+            payload["page_label"] = page.title or page.slug
+            payload["page_slug"] = page.slug
+
+            about_route_map = {
+                "hero": "/about/company-introduction#page1",
+                "company_introduction": "/about/company-introduction#page2",
+                "chairman_speech": "/about/chairman-speech#page3",
+                "organization_chart": "/about/organization-chart#page4",
+                "corporate_culture": "/about/corporate-culture#page5",
+                "development_course": "/about/development-course#page6",
+                "leadership_care": "/about/leadership-care#page7",
+                "cooperative_partner": "/about/cooperative-partner#page8",
+            }
+            anchor = str(payload.get("anchor") or getattr(record, "anchor", "")).strip().lower()
+            if page.slug == "about":
+                payload["preview_href"] = about_route_map.get(anchor, "/about/company-introduction#page1")
+        return payload
+
+    if entity_name != "entity_media":
+        return payload
+
+    entity_type = str(payload.get("entity_type") or getattr(record, "entity_type", "")).strip()
+    entity_id = getattr(record, "entity_id", None)
+    if entity_id is None:
+        return payload
+
+    if entity_type in {"project_category", "project_categories"}:
+        category = db.get(ProjectCategory, entity_id)
+        if category:
+            payload["entity_label"] = category.name
+            payload["preview_href"] = f"/project_list/{category.id}.html"
+        return payload
+
+    if entity_type == "project":
+        project = db.get(Project, entity_id)
+        if project:
+            payload["entity_label"] = project.title
+            payload["entity_slug"] = project.slug
+            payload["preview_href"] = f"/project/{project.slug}"
+        return payload
+
+    return payload
+
+
+
 def _base_query_for_model(model: type):
     query = select(model)
 
@@ -47,7 +125,7 @@ def _base_query_for_model(model: type):
     return query
 
 
-def serialize(record: Any, registration: EntityRegistration) -> dict[str, Any]:
+def serialize(db: Session, record: Any, registration: EntityRegistration) -> dict[str, Any]:
     payload = registration.read_schema.model_validate(record).model_dump(mode="json")
 
     if isinstance(record, Banner):
@@ -56,7 +134,8 @@ def serialize(record: Any, registration: EntityRegistration) -> dict[str, Any]:
     if isinstance(record, Video):
         payload["thumbnail"] = _serialize_media(getattr(record, "thumbnail", None))
 
-    return payload
+    payload = _stringify_project_case_ids(registration.model.__tablename__, payload)
+    return _decorate_project_case_admin_payload(db, registration.model.__tablename__, record, payload)
 
 
 def _normalize_validation_errors(exc: ValidationError) -> list[dict[str, Any]]:
@@ -175,6 +254,20 @@ def _raise_friendly_write_integrity_error(entity_name: str) -> None:
     )
 
 
+def _apply_admin_pages_filter(entity_name: str, model: type, query, count_query):
+    if entity_name == "pages" and model is Page:
+        canonical_about_condition = func.lower(func.coalesce(model.slug, "")) == "about"
+        return query.where(canonical_about_condition), count_query.where(canonical_about_condition)
+
+    if entity_name == "page_sections" and model is PageSection:
+        about_page_ids = select(Page.id).where(func.lower(func.coalesce(Page.slug, "")) == "about")
+        about_sections_condition = model.page_id.in_(about_page_ids)
+        return query.where(about_sections_condition), count_query.where(about_sections_condition)
+
+    return query, count_query
+
+
+
 def list_entity_records(
     db: Session,
     entity_name: str,
@@ -194,6 +287,8 @@ def list_entity_records(
         deleted_at = getattr(model, "deleted_at")
         query = query.where(deleted_at.is_(None))
         count_query = count_query.where(deleted_at.is_(None))
+
+    query, count_query = _apply_admin_pages_filter(entity_name, model, query, count_query)
 
     for candidate, value in {
         "language_id": language_id,
@@ -224,7 +319,7 @@ def list_entity_records(
     total = db.scalar(count_query) or 0
     records = db.scalars(query.offset(skip).limit(limit)).all()
     return {
-        "items": [serialize(record, registration) for record in records],
+        "items": [serialize(db, record, registration) for record in records],
         "pagination": {"skip": skip, "limit": limit, "total": total},
     }
 
@@ -253,7 +348,7 @@ def get_entity_record(db: Session, entity_name: str, record_id: int) -> dict[str
     record = db.scalar(_base_query_for_model(registration.model).where(registration.model.id == record_id))
     if not record:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Record not found.")
-    return serialize(record, registration)
+    return serialize(db, record, registration)
 
 
 def update_entity_record(db: Session, entity_name: str, record_id: int, payload: dict[str, Any]) -> dict[str, Any]:

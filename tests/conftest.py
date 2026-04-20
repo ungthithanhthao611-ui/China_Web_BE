@@ -18,7 +18,7 @@ from app.models.taxonomy import Language
 
 
 @pytest.fixture
-def client(tmp_path: Path) -> Generator[TestClient, None, None]:
+def testing_session_local(tmp_path: Path) -> Generator[sessionmaker, None, None]:
     db_path = tmp_path / "test_navigation_e2e.sqlite3"
     engine = create_engine(
         f"sqlite:///{db_path}",
@@ -45,6 +45,24 @@ def client(tmp_path: Path) -> Generator[TestClient, None, None]:
         )
         db.commit()
 
+    yield testing_session_local
+
+    Base.metadata.drop_all(bind=engine)
+    engine.dispose()
+
+
+@pytest.fixture
+def db_session(testing_session_local: sessionmaker) -> Generator[Session, None, None]:
+    db = testing_session_local()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+@pytest.fixture
+def client(testing_session_local: sessionmaker) -> Generator[TestClient, None, None]:
+
     def override_get_db() -> Generator[Session, None, None]:
         db = testing_session_local()
         try:
@@ -60,8 +78,6 @@ def client(tmp_path: Path) -> Generator[TestClient, None, None]:
         yield test_client
 
     app.dependency_overrides.clear()
-    Base.metadata.drop_all(bind=engine)
-    engine.dispose()
 
 
 @pytest.fixture

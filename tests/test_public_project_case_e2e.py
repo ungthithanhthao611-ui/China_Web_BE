@@ -35,6 +35,8 @@ def test_public_project_case_returns_expected_shape_and_order(client, admin_head
             "summary": "W hotel summary",
             "language_id": 1,
             "status": "published",
+            "legacy_detail_id": "1676516550370418688",
+            "legacy_detail_href": "/project_detail/1676516550370418688.html",
         },
     )
     project_two = _create_entity(
@@ -138,9 +140,9 @@ def test_public_project_case_returns_expected_shape_and_order(client, admin_head
     assert data["cases"][1]["anchor"] == "ctn3"
     assert data["cases"][0]["title"] == "W HOTEL"
     assert data["cases"][0]["detailHref"] == "/project/w-hotel"
-    assert data["cases"][0]["legacyDetailHref"] is None
+    assert data["cases"][0]["legacyDetailHref"] == "/project_detail/1676516550370418688.html"
     assert data["cases"][0]["leftGallery"] == ["https://example.com/left-1.jpg"]
-    assert data["categories"][0]["projects"][0]["anchor"] == "ctn2"
+    assert set(data["categories"][0].keys()) == {"id", "name", "slug"}
 
 
 def test_public_project_case_returns_404_for_unknown_category(client) -> None:

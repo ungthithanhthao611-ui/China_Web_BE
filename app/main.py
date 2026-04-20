@@ -23,6 +23,18 @@ logging.basicConfig(
 logger = logging.getLogger("china_web_api")
 
 
+def _to_json_safe(value):
+    if isinstance(value, dict):
+        return {k: _to_json_safe(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_to_json_safe(item) for item in value]
+    if isinstance(value, tuple):
+        return [_to_json_safe(item) for item in value]
+    if isinstance(value, Exception):
+        return str(value)
+    return value
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     scheduler_task: asyncio.Task | None = None
@@ -71,12 +83,16 @@ app.include_router(api_router, prefix=settings.api_v1_prefix)
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(_: Request, exc: HTTPException) -> JSONResponse:
-    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail}, headers=exc.headers)
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": _to_json_safe(exc.detail)},
+        headers=exc.headers,
+    )
 
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(_: Request, exc: RequestValidationError) -> JSONResponse:
-    return JSONResponse(status_code=422, content={"detail": exc.errors()})
+    return JSONResponse(status_code=422, content={"detail": _to_json_safe(exc.errors())})
 
 
 @app.exception_handler(Exception)
