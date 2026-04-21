@@ -6,12 +6,16 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_db
 from app.schemas.products import InquiryCreate
 from app.schemas.projects import ProjectCasePageRead
+from app.services.news import (
+    get_news_post_detail,
+    list_news_categories,
+    list_news_posts,
+)
 from app.services.public import (
     create_inquiry,
     get_bootstrap_payload,
     get_branch_detail,
     get_page_detail,
-    get_post_detail,
     get_product_detail,
     get_project_case_page,
     get_project_detail,
@@ -19,7 +23,6 @@ from app.services.public import (
     list_branches,
     list_contacts,
     list_honors,
-    list_posts,
     list_product_categories,
     list_products,
     list_projects,
@@ -46,28 +49,6 @@ def banners(
 @router.get("/pages/{slug}")
 def page_detail(slug: str, language_code: str = Query(default="en"), db: Session = Depends(get_db)) -> dict[str, Any]:
     return get_page_detail(db=db, slug=slug, language_code=language_code)
-
-
-@router.get("/posts")
-def posts(
-    language_code: str = Query(default="en"),
-    category_slug: str | None = Query(default=None),
-    skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=12, ge=1, le=100),
-    db: Session = Depends(get_db),
-) -> dict[str, Any]:
-    return list_posts(
-        db=db,
-        language_code=language_code,
-        category_slug=category_slug,
-        skip=skip,
-        limit=limit,
-    )
-
-
-@router.get("/posts/{slug}")
-def post_detail(slug: str, language_code: str = Query(default="en"), db: Session = Depends(get_db)) -> dict[str, Any]:
-    return get_post_detail(db=db, slug=slug, language_code=language_code)
 
 
 @router.get("/projects")
@@ -185,3 +166,29 @@ def product_detail(slug: str, db: Session = Depends(get_db)) -> dict[str, Any]:
 def submit_inquiry(payload: InquiryCreate, db: Session = Depends(get_db)) -> dict[str, Any]:
     return create_inquiry(db=db, payload=payload)
 
+
+# ─── News ────────────────────────────────────────────────────────────────────
+
+@router.get("/news")
+def news_list(
+    skip: int = Query(default=0),
+    limit: int = Query(default=12),
+    keyword: str | None = Query(default=None),
+    category_slug: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    return list_news_posts(db=db, skip=skip, limit=limit, keyword=keyword, category_slug=category_slug)
+
+
+@router.get("/news/categories")
+def news_categories(db: Session = Depends(get_db)) -> list[dict[str, Any]]:
+    return list_news_categories(db=db)
+
+
+@router.get("/news/{slug}")
+def news_detail(slug: str, db: Session = Depends(get_db)) -> dict[str, Any]:
+    result = get_news_post_detail(db=db, slug=slug)
+    if result is None:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="News post not found")
+    return result

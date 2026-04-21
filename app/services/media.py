@@ -13,7 +13,6 @@ from app.core.config import settings
 from app.models.content import Banner, ContentBlockItem, PageSection
 from app.models.media import MediaAsset
 from app.models.media import EntityMedia
-from app.models.news import Post
 from app.models.organization import Branch, Video
 from app.models.projects import Project
 from app.schemas.entities import MediaAssetRead

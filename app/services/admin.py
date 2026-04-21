@@ -9,7 +9,6 @@ from sqlalchemy.orm import Session, selectinload
 from app.core.config import settings
 from app.models.content import Banner, Page, PageSection
 from app.models.media import MediaAsset
-from app.models.news import Post, PostCategory
 from app.models.organization import Video
 from app.models.products import Product, ProductImage
 from app.models.projects import Project, ProjectCategory, ProjectCategoryItem
@@ -190,40 +189,6 @@ def _format_record_label(record: Any, fallback: str = "record") -> str:
 
 
 def _raise_delete_dependency_error(db: Session, entity_name: str, record: Any) -> None:
-    if entity_name == "post_categories":
-        posts_query = (
-            select(Post.id, Post.title, Post.slug)
-            .where(Post.category_id == record.id)
-            .order_by(Post.id.asc())
-        )
-        blocking_posts = db.execute(posts_query.limit(3)).all()
-        posts_count = db.scalar(select(func.count()).select_from(Post).where(Post.category_id == record.id)) or 0
-        child_count = db.scalar(select(func.count()).select_from(PostCategory).where(PostCategory.parent_id == record.id)) or 0
-
-        reasons: list[str] = []
-        if posts_count:
-            reasons.append(f"it is assigned to {posts_count} post{'s' if posts_count != 1 else ''}")
-        if child_count:
-            reasons.append(f"it has {child_count} child categor{'ies' if child_count != 1 else 'y'}")
-
-        if reasons:
-            label = _format_record_label(record, fallback="this category")
-            detail = f'Cannot delete Post Category "{label}" because ' + " and ".join(reasons) + "."
-
-            if blocking_posts:
-                blocking_post_labels = [
-                    f'#{post_id} "{(title or "Untitled post").strip()}" (slug: {slug or "-"})'
-                    for post_id, title, slug in blocking_posts
-                ]
-                detail += " Blocking posts: " + "; ".join(blocking_post_labels) + "."
-                if posts_count > len(blocking_posts):
-                    detail += f" And {posts_count - len(blocking_posts)} more post{'s' if posts_count - len(blocking_posts) != 1 else ''}."
-
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=detail,
-            )
-
     if entity_name == "project_categories":
         projects_count = db.scalar(select(func.count()).select_from(Project).where(Project.category_id == record.id)) or 0
         child_count = db.scalar(select(func.count()).select_from(ProjectCategory).where(ProjectCategory.parent_id == record.id)) or 0

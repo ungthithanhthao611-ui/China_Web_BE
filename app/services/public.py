@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session, selectinload
 from app.models.content import Banner, ContentBlock, ContentBlockItem, Page, PageSection
 from app.models.media import EntityMedia, MediaAsset
 from app.models.navigation import Menu, MenuItem
-from app.models.news import Post, PostCategory
 from app.models.organization import Branch, Contact, Video
 from app.models.products import ContactInquiry, Product, ProductCategory, ProductImage
 from app.models.projects import Project, ProjectCategory, ProjectCategoryItem
@@ -26,7 +25,6 @@ from app.schemas.entities import (
     MediaAssetRead,
     PageRead,
     PageSectionRead,
-    PostRead,
     ProjectRead,
     SiteSettingRead,
     VideoRead,
@@ -249,84 +247,6 @@ def get_page_detail(db: Session, slug: str, language_code: str) -> dict[str, Any
     return data
 
 
-def list_posts(
-    db: Session,
-    language_code: str,
-    category_slug: str | None,
-    skip: int,
-    limit: int,
-) -> dict[str, Any]:
-    language = get_language(db, language_code)
-
-    def build_query(language_id: int):
-        query = (
-            select(Post)
-            .options(selectinload(Post.image), selectinload(Post.category))
-            .where(Post.language_id == language_id, Post.status == "published")
-        )
-        if category_slug:
-            query = query.join(PostCategory).where(PostCategory.slug == category_slug)
-        return query
-
-    base_query = build_query(language.id)
-    total = len(db.scalars(base_query).all())
-
-    if total == 0:
-        default_language = _get_default_language(db)
-        if default_language and default_language.id != language.id:
-            fallback_query = build_query(default_language.id)
-            fallback_total = len(db.scalars(fallback_query).all())
-            if fallback_total > 0:
-                base_query = fallback_query
-                total = fallback_total
-
-    ordered_query = base_query.order_by(Post.published_at.desc().nullslast(), Post.id.desc())
-    items = db.scalars(ordered_query.offset(skip).limit(limit)).all()
-
-    payload = []
-    for item in items:
-        data = _serialize(PostRead, item)
-        if data.get("content_html"):
-            data["body"] = data["content_html"]
-        data["image"] = _serialize_media(item.image)
-        data["category"] = (
-            {"id": item.category.id, "name": item.category.name, "slug": item.category.slug}
-            if item.category
-            else None
-        )
-        payload.append(data)
-    return {"items": payload, "pagination": {"skip": skip, "limit": limit, "total": total}}
-
-
-def get_post_detail(db: Session, slug: str, language_code: str) -> dict[str, Any]:
-    language = get_language(db, language_code)
-    post = db.scalar(
-        select(Post)
-        .options(selectinload(Post.image), selectinload(Post.category))
-        .where(Post.slug == slug, Post.language_id == language.id, Post.status == "published")
-    )
-    if not post:
-        default_language = _get_default_language(db)
-        if default_language and default_language.id != language.id:
-            post = db.scalar(
-                select(Post)
-                .options(selectinload(Post.image), selectinload(Post.category))
-                .where(Post.slug == slug, Post.language_id == default_language.id, Post.status == "published")
-            )
-    if not post:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found.")
-
-    data = _serialize(PostRead, post)
-    if data.get("content_html"):
-        data["body"] = data["content_html"]
-    data["image"] = _serialize_media(post.image)
-    data["category"] = (
-        {"id": post.category.id, "name": post.category.name, "slug": post.category.slug}
-        if post.category
-        else None
-    )
-    data["gallery"] = _entity_gallery(db, "post", post.id)
-    return data
 
 
 def list_projects(
