@@ -25,9 +25,28 @@ def initialize_database() -> None:
     ensure_banners_schema()
     ensure_honors_schema()
     ensure_project_case_schema()
+    ensure_project_products_schema()
     ensure_inquiry_schema()
     with SessionLocal() as session:
         seed_basics(session)
+
+
+def ensure_project_products_schema() -> None:
+    with engine.begin() as conn:
+        inspector = inspect(conn)
+        table_names = set(inspector.get_table_names())
+        if "project_products" not in table_names:
+            return
+
+        column_names = {column["name"] for column in inspector.get_columns("project_products")}
+        columns_to_add = [
+            ("note", "TEXT"),
+        ]
+
+        for column_name, column_type in columns_to_add:
+            if column_name in column_names:
+                continue
+            conn.execute(text(f"ALTER TABLE project_products ADD COLUMN {column_name} {column_type}"))
 
 
 def ensure_inquiry_schema() -> None:
@@ -303,7 +322,7 @@ def seed_product_categories(session: Session) -> None:
         target = ProductCategory(
             name=target_category_name, 
             slug=target_category_slug, 
-            description="Danh mục sản phẩm trang trí bao gồm các dòng tấm ốp linh hoạt với đa dạng mẫu mã, kích và bề mặt vân đá tự nhiên.", 
+            description="Danh mục sản phẩm trang trí bao gồm các dòng tấm ốp linh hoạt với đa dạng mẫu mã, kích và bề mặt vân đá tự nhiên.",
             sort_order=10, 
             is_active=True
         )
@@ -389,8 +408,36 @@ def seed_media_assets(session: Session) -> dict[str, MediaAsset]:
 
 def seed_site_settings(session: Session, language_id: int | None) -> None:
     settings_seed = [
-        ("site_name", "THIÊN ĐỒNG VIỆT NAM", "general", "Public site display name"),
-        ("site_tagline", "UY TÍN TỪ NHỮNG ĐIỀU NHỎ NHẤT", "general", "Short tagline for header/footer"),
+        (
+            "site_name",
+            "CÔNG TY TNHH THƯƠNG MẠI QUỐC TẾ THIÊN ĐỒNG VIỆT NAM",
+            "general",
+            "Public site display name",
+        ),
+        (
+            "site_tagline",
+            "UY TÍN TỪ NHỮNG ĐIỀU NHỎ NHẤT",
+            "general",
+            "Short tagline for header/footer",
+        ),
+        (
+            "company_logo_url",
+            "https://drive.google.com/uc?export=view&id=1jsomm1iXA8vsNF35BikjfO1w4Ox5UPzS",
+            "general",
+            "Company logo URL (temporary external source before Media Library migration)",
+        ),
+        (
+            "company_name",
+            "CÔNG TY TNHH THƯƠNG MẠI QUỐC TẾ THIÊN ĐỒNG VIỆT NAM",
+            "general",
+            "Legacy fallback key for company display name",
+        ),
+        (
+            "company_slogan",
+            "UY TÍN TỪ NHỮNG ĐIỀU NHỎ NHẤT",
+            "general",
+            "Legacy fallback key for company slogan",
+        ),
         ("homepage_hero_title", "Giải pháp vật liệu ốp lát hiện đại & linh hoạt.", "homepage", "Hero headline for the landing page"),
         (
             "homepage_hero_subtitle",
@@ -411,7 +458,7 @@ def seed_site_settings(session: Session, language_id: int | None) -> None:
         ),
         (
             "company_address",
-            "52 Ấp Đồng Chinh, Phước Hòa, Phú Giáo, Bình Dương",
+            "52 Ấp Đồng Chinh, Phước Hoà, Phú Giáo, Bình Dương",
             "contact",
             "Company headquarters address",
         ),
@@ -421,9 +468,14 @@ def seed_site_settings(session: Session, language_id: int | None) -> None:
             "contact",
             "Public map embed URL for head office",
         ),
-        ("company_phone", "0948.929.744", "contact", "Main hotline"),
-        ("company_email", "thiendongintl@gmail.com", "contact", "Main contact email"),
-        ("copyright_text", "© 2024 THIÊN ĐỒNG VIỆT NAM. Tất cả quyền được bảo lưu.", "legal", "Footer copyright line"),
+        ("company_phone", "0982818273 / 0968297104", "contact", "Main hotline"),
+        ("company_email", "Thiendongvnit@gmail.com", "contact", "Main contact email"),
+        (
+            "copyright_text",
+            "© 2024 THIÊN ĐỒNG VIỆT NAM. Tất cả quyền được bảo lưu.",
+            "legal",
+            "Footer copyright line",
+        ),
         ("beian_text", "", "legal", "备案号"),
         ("beian_url", "", "legal", "备案跳转地址"),
         ("technical_support_text", "Hỗ trợ kỹ thuật: THIÊN ĐỒNG VIỆT NAM", "legal", "Footer support text"),

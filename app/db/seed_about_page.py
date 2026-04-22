@@ -1,5 +1,5 @@
 """
-Sprint 2 – Seed About page CMS data.
+Sprint 2 - Seed About page CMS data.
 
 Tạo 1 page canonical slug="about" với đầy đủ:
 - 8 page_sections
@@ -17,7 +17,7 @@ from app.models.content import ContentBlock, ContentBlockItem, Page, PageSection
 
 
 # ---------------------------------------------------------------------------
-# Helpers – idempotent get-or-create
+# Helpers - idempotent get-or-create
 # ---------------------------------------------------------------------------
 
 def _get_or_create_page(session: Session, slug: str, language_id: int, **kwargs) -> Page:
@@ -122,7 +122,7 @@ def _repo(f: str) -> str:
 def seed_about_page(session: Session, language_id: int) -> None:
     """Seed About page with all sections, blocks, and items."""
 
-    # ── 1. Page ────────────────────────────────────────────────────────────
+    # 1. Page
     about = _get_or_create_page(
         session,
         slug="about",
@@ -134,14 +134,14 @@ def seed_about_page(session: Session, language_id: int) -> None:
         parent_id=None,
         status="published",
         meta_title="Giới Thiệu | THIÊN ĐỒNG VIỆT NAM",
-        meta_description="Thông tin về Công ty TNHH Thương mại Quốc tế Thiên Đông Việt Nam - chuyên cung cấp đá mềm, tấm ốp linh hoạt cao cấp.",
+        meta_description="Thông tin về Công ty TNHH Thương mại Quốc tế Thiên Đồng Việt Nam - chuyên cung cấp đá mềm, tấm ốp linh hoạt cao cấp.",
         sort_order=5,
     )
     pid = about.id
 
-    # ── 2. Sections ────────────────────────────────────────────────────────
+    # 2. Sections
     sections_seed = [
-        ("hero", "Giới Thiệu Thiên Đông", "hero", 10),
+        ("hero", "Giới Thiệu Thiên Đồng", "hero", 10),
         ("company_introduction", "Về Chúng Tôi", "content", 20),
         ("chairman_speech", "Tầm Nhìn & Chiến Lược", "content", 30),
         ("organization_chart", "Sơ Đồ Tổ Chức", "media", 40),
@@ -162,7 +162,7 @@ def seed_about_page(session: Session, language_id: int) -> None:
             image_id=None,
         )
 
-    # ── 3 & 4. Blocks + Items ─────────────────────────────────────────────
+    # 3 & 4. Blocks + Items
     _seed_hero_blocks(session, pid, language_id)
     _seed_intro_blocks(session, pid, language_id)
     _seed_speech_blocks(session, pid, language_id)
@@ -183,16 +183,23 @@ def _seed_hero_blocks(session: Session, page_id: int, lang_id: int) -> None:
         session, "page", page_id, "hero_summary", lang_id,
         title="Tổng quan giới thiệu", block_type="key_value", sort_order=10,
     )
-    _get_or_create_item(session, b.id, "headline",
-                        title="THIÊN ĐỒNG VIỆT NAM", sort_order=10)
-    _get_or_create_item(session, b.id, "description",
-                        title="Mô tả hero",
-                        content="Thiên Đông Việt Nam - Uy tín từ những điều nhỏ nhất. Chúng tôi kiến tạo không gian đẳng cấp bằng vật liệu đá mềm hiện đại.",
-                        sort_order=20)
-    _get_or_create_item(session, b.id, "cover_image",
-                        title="Banner đầu trang",
-                        metadata_json={"src": "/images/banner/banner3.jpg"},
-                        sort_order=30)
+    _get_or_create_item(
+        session, b.id, "headline",
+        title="CÔNG TY TNHH THƯƠNG MẠI QUỐC TẾ THIÊN ĐỒNG VIỆT NAM",
+        sort_order=10,
+    )
+    _get_or_create_item(
+        session, b.id, "description",
+        title="Mô tả hero",
+        content="Thiên Đồng Việt Nam - Uy tín từ những điều nhỏ nhất. Chuyên cung cấp các dòng đá mềm và tấm ốp tường linh hoạt cho không gian hiện đại.",
+        sort_order=20,
+    )
+    _get_or_create_item(
+        session, b.id, "cover_image",
+        title="Banner đầu trang",
+        metadata_json={"src": "/images/banner/banner3.jpg"},
+        sort_order=30,
+    )
 
     # hero_nav
     b = _get_or_create_block(
@@ -225,7 +232,10 @@ def _seed_intro_blocks(session: Session, page_id: int, lang_id: int) -> None:
     _get_or_create_item(session, b.id, "cover_image",
                         title="Hình ảnh nền mục Giới thiệu",
                         sort_order=10,
-                        metadata_json={"src": _img("f1225086-4996-4f1d-886-08f4228a378e.png")})
+                        metadata_json={
+                            "src": "https://res.cloudinary.com/db1b15yn4/image/upload/v1776357180/China_web/banner/homepage-banner-05-image.jpg",
+                            "legacy_source_url": _img("f1225086-4996-4f1d-886-08f4228a378e.png"),
+                        })
 
     # intro_video
     b = _get_or_create_block(
@@ -237,21 +247,25 @@ def _seed_intro_blocks(session: Session, page_id: int, lang_id: int) -> None:
     _get_or_create_item(session, b.id, "video_url",
                         title="Company intro video",
                         link="/images/vd/1fb59345-a995-4408-b03b-e8e38ff258e7.web.mp4",
+                        metadata_json={
+                            "external_source_url": "https://drive.google.com/file/d/120045rHguHlBfZHH2UnwY58KL8DAUhZv/view?usp=sharing",
+                            "media_migration_status": "pending",
+                        },
                         sort_order=20)
 
     # intro_paragraphs
     paragraphs = [
         "CÔNG TY TNHH THƯƠNG MẠI QUỐC TẾ THIÊN ĐỒNG VIỆT NAM chuyên cung cấp các dòng đá mềm – tấm ốp linh hoạt cao cấp, ứng dụng trong trang trí nội thất và ngoại thất hiện đại.",
-        "Mang đến giải pháp vật liệu ốp lát hiện đại, bền đẹp và tối ưu chi phí, giúp khách hàng nâng tầm không gian sống và công trình xây dựng.",
+        "Sản phẩm của chúng tôi mang lại giải pháp thay thế hoàn hảo cho đá tự nhiên truyền thống với ưu điểm nhẹ, linh hoạt, dễ thi công và tiết kiệm chi phí, phù hợp cho nhiều loại công trình từ nhà ở, showroom đến dự án thương mại.",
     ]
     b = _get_or_create_block(
         session, "page", page_id, "intro_paragraphs", lang_id,
         title="Nội dung giới thiệu (Các đoạn văn)", block_type="rich_text_list", sort_order=50,
     )
-    
-    # Clear existing items for this block to remove old English paragraphs
+
+    # Clear existing items for this block to remove old paragraphs
     session.execute(delete(ContentBlockItem).where(ContentBlockItem.block_id == b.id))
-    
+
     for idx, text in enumerate(paragraphs):
         _get_or_create_item(
             session, b.id, f"paragraph_{idx + 1}",
@@ -265,7 +279,7 @@ def _seed_speech_blocks(session: Session, page_id: int, lang_id: int) -> None:
     # speech_profile
     b = _get_or_create_block(
         session, "page", page_id, "speech_profile", lang_id,
-        title="Tầm Nhìn & Chiến Lược", block_type="media", sort_order=60,
+        title="Tầm Nhìn & Sứ Mệnh", block_type="media", sort_order=60,
     )
     _get_or_create_item(session, b.id, "portrait",
                         title="Hình ảnh Giám đốc",
@@ -273,25 +287,35 @@ def _seed_speech_blocks(session: Session, page_id: int, lang_id: int) -> None:
                         metadata_json={"src": "https://res.cloudinary.com/db1b15yn4/image/upload/v1776694034/Image_20260418142413_9_3_m65uzj.jpg"})
 
     # speech_body
-    speech_paragraphs = [
-        "Thiên Đông Việt Nam hướng tới trở thành doanh nghiệp đi đầu tại Việt Nam trong lĩnh vực cung cấp tấm ốp trang trí đá mềm linh hoạt, không chỉ phục vụ nhu cầu trong nước mà còn vươn tầm ra thị trường quốc tế.",
-        "Chúng tôi cam kết không ngừng đổi mới, nâng cao chất lượng dịch vụ và sản phẩm để mang lại giá trị bền vững cho khách hàng và đối tác.",
-    ]
+    vision = (
+        "Trở thành đơn vị tiên phong tại Việt Nam trong lĩnh vực cung cấp vật liệu trang trí linh hoạt, "
+        "đặc biệt là đá mềm, hướng đến thị trường quốc tế."
+    )
+    mission = (
+        "Mang đến giải pháp vật liệu ốp lát hiện đại, bền đẹp và tối ưu chi phí, "
+        "giúp khách hàng nâng tầm không gian sống và công trình xây dựng."
+    )
+
     b = _get_or_create_block(
         session, "page", page_id, "speech_body", lang_id,
-        title="Tầm Nhìn & Chiến Lược", block_type="rich_text_list", sort_order=70,
+        title="Tầm Nhìn & Sứ Mệnh", block_type="rich_text_list", sort_order=70,
     )
-    
+
     # Clear existing items for this block
     session.execute(delete(ContentBlockItem).where(ContentBlockItem.block_id == b.id))
-    
-    for idx, text in enumerate(speech_paragraphs):
-        _get_or_create_item(
-            session, b.id, f"paragraph_{idx + 1}",
-            title=None,
-            content=text,
-            sort_order=(idx + 1) * 10,
-        )
+
+    _get_or_create_item(
+        session, b.id, "vision",
+        title="Tầm nhìn",
+        content=vision,
+        sort_order=10,
+    )
+    _get_or_create_item(
+        session, b.id, "mission",
+        title="Sứ mệnh",
+        content=mission,
+        sort_order=20,
+    )
 
     # speech_signature - Set to empty to hide
     b = _get_or_create_block(
@@ -304,11 +328,6 @@ def _seed_speech_blocks(session: Session, page_id: int, lang_id: int) -> None:
     _get_or_create_item(session, b.id, "sign_name",
                         title="",
                         sort_order=20)
-    # Clear signature image as it's not provided
-    # _get_or_create_item(session, b.id, "signature_image",
-    #                     title="Signature image",
-    #                     sort_order=30,
-    #                     metadata_json={"src": "/images/5ea063cc-18de-4c5c-8e82-3fb04d11f038.png"})
 
 
 def _seed_org_chart_blocks(session: Session, page_id: int, lang_id: int) -> None:
@@ -319,7 +338,10 @@ def _seed_org_chart_blocks(session: Session, page_id: int, lang_id: int) -> None
     _get_or_create_item(session, b.id, "main_chart",
                         title="Organization chart image",
                         sort_order=10,
-                        metadata_json={"src": _img("bcb4ff12-813e-43ef-9669-e5ed2da9a123.png")})
+                        metadata_json={
+                            "src": _img("bcb4ff12-813e-43ef-9669-e5ed2da9a123.png"),
+                            "org_chart_text": "Giám đốc | Phòng Kinh doanh | Phòng Marketing | Phòng Kỹ thuật / Thi công | Kế toán – Hành chính",
+                        })
 
 
 def _seed_culture_blocks(session: Session, page_id: int, lang_id: int) -> None:
@@ -335,10 +357,10 @@ def _seed_culture_blocks(session: Session, page_id: int, lang_id: int) -> None:
             ],
         ),
     ]
-    
+
     # Clear existing culture blocks to remove extra tabs
     culture_keys = ["culture_purpose", "culture_mission", "culture_spirit", "culture_values"]
-    
+
     # 1. Clear items first to avoid ForeignKeyViolation
     session.execute(
         delete(ContentBlockItem).where(
@@ -351,7 +373,7 @@ def _seed_culture_blocks(session: Session, page_id: int, lang_id: int) -> None:
             )
         )
     )
-    
+
     # 2. Clear blocks
     session.execute(
         delete(ContentBlock).where(
@@ -369,7 +391,7 @@ def _seed_culture_blocks(session: Session, page_id: int, lang_id: int) -> None:
         )
         for idx, (label, text) in enumerate(items):
             _get_or_create_item(
-                session, b.id, f"item_{idx + 1}",
+                session, b.id, f"value_{idx + 1}",
                 title=label,
                 content=text,
                 sort_order=(idx + 1) * 10,
@@ -379,12 +401,12 @@ def _seed_culture_blocks(session: Session, page_id: int, lang_id: int) -> None:
 def _seed_timeline_blocks(session: Session, page_id: int, lang_id: int) -> None:
     timeline_entries = [
         ("2024", "", "Thành lập công ty tại Bình Dương", ""),
-        ("2024 – nay", "", "Phát triển và phân phối sản phẩm đá mềm, mở rộng mạng lưới khách hàng trong và ngoài nước", ""),
+        ("2024 - nay", "", "Phát triển và phân phối sản phẩm đá mềm, mở rộng mạng lưới khách hàng trong và ngoài nước", ""),
     ]
 
     b = _get_or_create_block(
         session, "page", page_id, "timeline", lang_id,
-        title="Lịch sử phát triển", block_type="timeline", sort_order=140,
+        title="Lịch Sử Phát Triển", block_type="timeline", sort_order=140,
     )
 
     # CLEAR existing items first to remove old milestones
@@ -426,14 +448,15 @@ def _seed_leadership_blocks(session: Session, page_id: int, lang_id: int) -> Non
 
     b = _get_or_create_block(
         session, "page", page_id, "leadership_care_gallery", lang_id,
-        title="Góc Nhìn Ban Lãnh Đạo", block_type="gallery", sort_order=150,
+        title="Ban Lãnh Đạo", block_type="gallery", sort_order=150,
     )
-    for idx, (year, image_url, text) in enumerate(leadership_items):
+    for idx, (role, image_url, name) in enumerate(leadership_items):
         _get_or_create_item(
-            session, b.id, f"visit_{idx + 1}",
-            title=text,
+            session, b.id, f"leader_{idx + 1}",
+            title=name,
+            subtitle=role,
             sort_order=(idx + 1) * 10,
-            metadata_json={"year": year, "image_url": image_url},
+            metadata_json={"role": role, "image_url": image_url},
         )
 
 
