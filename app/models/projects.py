@@ -48,6 +48,26 @@ class Project(BigIntPrimaryKeyMixin, TimestampMixin, Base):
         back_populates="project",
         cascade="all, delete-orphan",
     )
+    project_products: Mapped[list["ProjectProduct"]] = relationship(
+        "ProjectProduct",
+        back_populates="project",
+        cascade="all, delete-orphan",
+        order_by="ProjectProduct.sort_order",
+    )
+
+
+class ProjectProduct(BigIntPrimaryKeyMixin, TimestampMixin, SortOrderMixin, Base):
+    __tablename__ = "project_products"
+    __table_args__ = (
+        UniqueConstraint("project_id", "product_id", name="uq_project_products_project_product"),
+    )
+
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), index=True, nullable=False)
+    product_id: Mapped[int] = mapped_column(ForeignKey("products.id", ondelete="CASCADE"), index=True, nullable=False)
+    note: Mapped[str | None] = mapped_column(Text)
+
+    project = relationship("Project", back_populates="project_products")
+    product = relationship("Product", back_populates="project_products")
 
 
 class ProjectCategoryItem(BigIntPrimaryKeyMixin, TimestampMixin, SortOrderMixin, Base):

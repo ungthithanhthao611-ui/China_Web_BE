@@ -1,8 +1,13 @@
+from typing import TYPE_CHECKING
+
 from sqlalchemy import Boolean, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
 from app.models.mixins import BigIntPrimaryKeyMixin, SortOrderMixin, TimestampMixin
+
+if TYPE_CHECKING:
+    from app.models.projects import ProjectProduct
 
 
 class ProductCategory(BigIntPrimaryKeyMixin, TimestampMixin, SortOrderMixin, Base):
@@ -40,6 +45,12 @@ class Product(BigIntPrimaryKeyMixin, TimestampMixin, SortOrderMixin, Base):
     category = relationship("ProductCategory", back_populates="products")
     images = relationship(
         "ProductImage", back_populates="product", order_by="ProductImage.sort_order", cascade="all, delete-orphan"
+    )
+    project_products: Mapped[list["ProjectProduct"]] = relationship(
+        "ProjectProduct",
+        back_populates="product",
+        cascade="all, delete-orphan",
+        order_by="ProjectProduct.sort_order",
     )
 
 

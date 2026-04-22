@@ -4,8 +4,8 @@ from app.models.media import EntityMedia, MediaAsset
 from app.models.navigation import Menu, MenuItem
 from app.models.organization import Branch, Contact, Honor, HonorCategory, Video
 from app.models.products import ContactInquiry, Product, ProductCategory, ProductImage
-from app.models.projects import Project, ProjectCategory, ProjectCategoryItem
-from app.models.news import NewsCategory, NewsPost
+from app.models.projects import Project, ProjectCategory, ProjectCategoryItem, ProjectProduct
+from app.models.news import NewsPost
 from app.models.taxonomy import Language, SiteSetting, Translation
 
 __all__ = [
@@ -23,7 +23,6 @@ __all__ = [
     "MediaAsset",
     "Menu",
     "MenuItem",
-    "NewsCategory",
     "NewsPost",
     "Page",
     "PageSection",
@@ -33,6 +32,7 @@ __all__ = [
     "Project",
     "ProjectCategory",
     "ProjectCategoryItem",
+    "ProjectProduct",
     "SiteSetting",
     "Translation",
     "Video",

@@ -21,6 +21,54 @@ class CrawlRequest(BaseModel):
     url: str
 
 
+def _extract_src_from_srcset(srcset_value: str) -> str:
+    """Pick a usable URL from srcset/data-srcset."""
+    if not srcset_value:
+        return ""
+    parts = [chunk.strip() for chunk in str(srcset_value).split(",") if chunk.strip()]
+    if not parts:
+        return ""
+    # Prefer the last candidate (often highest resolution).
+    candidate = parts[-1].split()[0].strip()
+    return candidate
+
+
+def _normalize_image_src(image_tag, base_url: str) -> str:
+    """Resolve image URL from common lazy-load attributes."""
+    candidates = [
+        image_tag.get("src"),
+        image_tag.get("data-src"),
+        image_tag.get("data-original"),
+        image_tag.get("data-lazy-src"),
+        image_tag.get("data-image"),
+        image_tag.get("data-url"),
+        _extract_src_from_srcset(image_tag.get("srcset")),
+        _extract_src_from_srcset(image_tag.get("data-srcset")),
+    ]
+
+    for raw in candidates:
+        src = str(raw or "").strip()
+        if not src:
+            continue
+        lower = src.lower()
+        if lower.startswith(("data:", "javascript:", "blob:", "#")):
+            continue
+        if src.startswith("//"):
+            src = f"https:{src}"
+        normalized = urljoin(base_url, src)
+        if normalized.startswith(("http://", "https://")):
+            return normalized
+    return ""
+
+
+def _is_probably_content_image(src: str) -> bool:
+    lower = src.lower()
+    noisy_keywords = ("logo", "icon", "sprite", "emoji", "avatar", "tracking", "pixel", "ads")
+    if any(keyword in lower for keyword in noisy_keywords):
+        return False
+    return True
+
+
 def _process_html_to_blocks(html: str, base_url: str = ""):
     """Convert HTML string to editor blocks (same logic as /new Node server)."""
     from bs4 import BeautifulSoup
@@ -34,6 +82,7 @@ def _process_html_to_blocks(html: str, base_url: str = ""):
 
     current_text_html = ""
     current_text_length = 0
+    seen_image_sources: set[str] = set()
 
     def flush_text():
         nonlocal current_text_html, current_text_length, current_y
@@ -74,8 +123,11 @@ def _process_html_to_blocks(html: str, base_url: str = ""):
             flush_text()
             img_tag = child if tag == "img" else child.find("img")
             figcaption = child.find("figcaption") if tag == "figure" else None
-            if img_tag and img_tag.get("src"):
-                src = urljoin(base_url, img_tag.get("src"))
+            if img_tag:
+                src = _normalize_image_src(img_tag, base_url)
+                if not src or not _is_probably_content_image(src) or src in seen_image_sources:
+                    continue
+                seen_image_sources.add(src)
                 caption = figcaption.get_text(" ", strip=True) if figcaption else (img_tag.get("alt") or "")
                 img_height = 400
                 blocks.append(
@@ -104,8 +156,11 @@ def _process_html_to_blocks(html: str, base_url: str = ""):
                         flush_text()
                         img_tag = sub if sub.name == "img" else sub.find("img")
                         figcaption = sub.find("figcaption") if sub.name == "figure" else None
-                        if img_tag and img_tag.get("src"):
-                            src = urljoin(base_url, img_tag.get("src"))
+                        if img_tag:
+                            src = _normalize_image_src(img_tag, base_url)
+                            if not src or not _is_probably_content_image(src) or src in seen_image_sources:
+                                continue
+                            seen_image_sources.add(src)
                             caption = figcaption.get_text(" ", strip=True) if figcaption else (img_tag.get("alt") or "")
                             img_height = 400
                             blocks.append(
@@ -209,11 +264,13 @@ def _extract_fallback_article_html(html: str, url: str):
     article_node = _clean_article_node(article_node)
 
     for image in article_node.find_all("img"):
-        src = image.get("src") or image.get("data-src") or image.get("data-original")
+        src = _normalize_image_src(image, url)
         if src:
-            image["src"] = urljoin(url, src)
+            image["src"] = src
             if not thumbnail_url:
                 thumbnail_url = image["src"]
+        else:
+            image.decompose()
 
     content_html = str(article_node)
     plain_text = article_node.get_text(" ", strip=True)

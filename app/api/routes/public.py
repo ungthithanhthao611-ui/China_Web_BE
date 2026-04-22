@@ -8,7 +8,6 @@ from app.schemas.products import InquiryCreate
 from app.schemas.projects import ProjectCasePageRead
 from app.services.news import (
     get_news_post_detail,
-    list_news_categories,
     list_news_posts,
 )
 from app.services.public import (
@@ -171,18 +170,12 @@ def submit_inquiry(payload: InquiryCreate, db: Session = Depends(get_db)) -> dic
 
 @router.get("/news")
 def news_list(
-    skip: int = Query(default=0),
-    limit: int = Query(default=12),
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=12, ge=1, le=100),
     keyword: str | None = Query(default=None),
-    category_slug: str | None = Query(default=None),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
-    return list_news_posts(db=db, skip=skip, limit=limit, keyword=keyword, category_slug=category_slug)
-
-
-@router.get("/news/categories")
-def news_categories(db: Session = Depends(get_db)) -> list[dict[str, Any]]:
-    return list_news_categories(db=db)
+    return list_news_posts(db=db, skip=skip, limit=limit, keyword=keyword)
 
 
 @router.get("/news/{slug}")

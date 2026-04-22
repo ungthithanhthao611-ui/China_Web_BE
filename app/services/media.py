@@ -15,6 +15,7 @@ from app.models.media import MediaAsset
 from app.models.media import EntityMedia
 from app.models.organization import Branch, Video
 from app.models.projects import Project
+from app.models.news import NewsPost
 from app.schemas.entities import MediaAssetRead
 
 ALLOWED_UPLOAD_MIME_PREFIXES = ("image/", "video/")
@@ -137,7 +138,7 @@ def _media_asset_references(db: Session, media_id: int) -> list[str]:
             "content_block_items.image_id",
             select(func.count()).select_from(ContentBlockItem).where(ContentBlockItem.image_id == media_id),
         ),
-        ("posts.image_id", select(func.count()).select_from(Post).where(Post.image_id == media_id)),
+        ("posts.image_id", select(func.count()).select_from(NewsPost).where(NewsPost.image_id == media_id)),
         ("projects.image_id", select(func.count()).select_from(Project).where(Project.image_id == media_id)),
         ("projects.hero_image_id", select(func.count()).select_from(Project).where(Project.hero_image_id == media_id)),
         ("videos.thumbnail_id", select(func.count()).select_from(Video).where(Video.thumbnail_id == media_id)),

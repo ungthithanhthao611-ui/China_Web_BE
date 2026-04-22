@@ -40,8 +40,6 @@ class Settings(BaseSettings):
     wp_auto_sync_per_page: int = 50
     wp_auto_sync_max_pages: int = 10
     wp_bidirectional_delete_enabled: bool = False
-    wp_default_category_slug: str = "corporate-news"
-    wp_category_slug_aliases: str = "uncategorized:corporate-news,chua-phan-loai:corporate-news"
     onlyoffice_document_server_url: str = ""
     onlyoffice_callback_base_url: str = ""
     onlyoffice_jwt_secret: str = ""

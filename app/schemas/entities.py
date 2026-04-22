@@ -568,6 +568,30 @@ class ProjectCategoryItemRead(ORMModel):
     updated_at: datetime
 
 
+class ProjectProductCreate(BaseModel):
+    project_id: int
+    product_id: int
+    sort_order: int = 0
+    note: str | None = None
+
+
+class ProjectProductUpdate(BaseModel):
+    project_id: int | None = None
+    product_id: int | None = None
+    sort_order: int | None = None
+    note: str | None = None
+
+
+class ProjectProductRead(ORMModel):
+    id: int
+    project_id: int
+    product_id: int
+    sort_order: int
+    note: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
 class VideoCreate(BaseModel):
     title: str
     description: str | None = None

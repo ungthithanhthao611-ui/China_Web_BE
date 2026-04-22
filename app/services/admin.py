@@ -11,7 +11,7 @@ from app.models.content import Banner, Page, PageSection
 from app.models.media import MediaAsset
 from app.models.organization import Video
 from app.models.products import Product, ProductImage
-from app.models.projects import Project, ProjectCategory, ProjectCategoryItem
+from app.models.projects import Project, ProjectCategory, ProjectCategoryItem, ProjectProduct
 from app.services.media import delete_media_asset_record
 from app.services.catalog import ENTITY_REGISTRY, EntityRegistration
 
@@ -48,6 +48,8 @@ def _stringify_project_case_ids(entity_name: str, payload: dict[str, Any]) -> di
         fields_to_stringify = ("category_id",)
     elif entity_name == "project_category_items":
         fields_to_stringify = ("category_id",)
+    elif entity_name == "project_products":
+        fields_to_stringify = ("project_id", "product_id")
     elif entity_name == "entity_media" and str(payload.get("entity_type") or "").strip() in {
         "project_category",
         "project_categories",
@@ -129,6 +131,12 @@ def _base_query_for_model(model: type):
     if model is Product:
         return query.options(selectinload(Product.images), selectinload(Product.category))
 
+    if model is ProjectProduct:
+        return query.options(
+            selectinload(ProjectProduct.project),
+            selectinload(ProjectProduct.product),
+        )
+
     return query
 
 
@@ -146,6 +154,10 @@ def serialize(db: Session, record: Any, registration: EntityRegistration) -> dic
             [img.url for img in sorted(getattr(record, "images", []) or [], key=lambda item: (item.sort_order, item.id))]
         )
         payload["category_name"] = record.category.name if getattr(record, "category", None) else None
+
+    if isinstance(record, ProjectProduct):
+        payload["project_name"] = record.project.title if getattr(record, "project", None) else None
+        payload["product_name"] = record.product.name if getattr(record, "product", None) else None
 
     payload = _stringify_project_case_ids(registration.model.__tablename__, payload)
     return _decorate_project_case_admin_payload(db, registration.model.__tablename__, record, payload)
@@ -235,6 +247,12 @@ def _raise_friendly_write_integrity_error(entity_name: str) -> None:
             detail=(
                 "Project case mapping must use a unique project and a unique anchor within the same category."
             ),
+        )
+
+    if entity_name == "project_products":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Project -> Product mapping must be unique. A product cannot be linked twice to the same project.",
         )
 
     entity_label = entity_name.replace("_", " ").rstrip("s") or "record"

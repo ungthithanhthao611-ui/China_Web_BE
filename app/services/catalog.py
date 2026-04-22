@@ -5,8 +5,8 @@ from app.models.media import EntityMedia, MediaAsset
 from app.models.navigation import Menu, MenuItem
 from app.models.organization import Branch, Contact, Honor, HonorCategory, Video
 from app.models.products import ContactInquiry, Product, ProductCategory
-from app.models.projects import Project, ProjectCategory, ProjectCategoryItem
-from app.models.news import NewsCategory, NewsPost
+from app.models.projects import Project, ProjectCategory, ProjectCategoryItem, ProjectProduct
+from app.models.news import NewsPost
 from app.models.taxonomy import Language, SiteSetting, Translation
 from app.schemas.entities import (
     BannerCreate,
@@ -58,6 +58,9 @@ from app.schemas.entities import (
     ProjectCategoryRead,
     ProjectCategoryUpdate,
     ProjectCreate,
+    ProjectProductCreate,
+    ProjectProductRead,
+    ProjectProductUpdate,
     ProjectRead,
     ProjectUpdate,
     SiteSettingCreate,
@@ -70,14 +73,7 @@ from app.schemas.entities import (
     VideoRead,
     VideoUpdate,
 )
-from app.schemas.news import (
-    NewsCategoryCreate,
-    NewsCategoryRead,
-    NewsCategoryUpdate,
-    NewsPostCreate,
-    NewsPostRead,
-    NewsPostUpdate,
-)
+from app.schemas.news import NewsPostCreate, NewsPostRead, NewsPostUpdate
 from app.schemas.products import (
     InquiryCreate,
     InquiryRead,
@@ -130,6 +126,12 @@ ENTITY_REGISTRY: dict[str, EntityRegistration] = {
         ProjectCategoryItemCreate,
         ProjectCategoryItemUpdate,
     ),
+    "project_products": EntityRegistration(
+        ProjectProduct,
+        ProjectProductRead,
+        ProjectProductCreate,
+        ProjectProductUpdate,
+    ),
     "videos": EntityRegistration(Video, VideoRead, VideoCreate, VideoUpdate),
     "contacts": EntityRegistration(Contact, ContactRead, ContactCreate, ContactUpdate),
     "honor_categories": EntityRegistration(
@@ -156,12 +158,6 @@ ENTITY_REGISTRY: dict[str, EntityRegistration] = {
         InquiryUpdate,
     ),
     # ─── News ─────────────────────────────────────────────────────────────────
-    "news_categories": EntityRegistration(
-        NewsCategory,
-        NewsCategoryRead,
-        NewsCategoryCreate,
-        NewsCategoryUpdate,
-    ),
     "news_posts": EntityRegistration(NewsPost, NewsPostRead, NewsPostCreate, NewsPostUpdate),
 }
 

@@ -1,44 +1,9 @@
 from datetime import datetime
-from typing import Any, Optional
 
 from pydantic import BaseModel
 
 from app.schemas.entities import ORMModel
 
-
-# ─── NewsCategory ────────────────────────────────────────────────────────────
-
-class NewsCategoryCreate(BaseModel):
-    name: str
-    slug: str
-    description: str | None = None
-    parent_id: int | None = None
-    sort_order: int = 0
-    status: str = "active"
-
-
-class NewsCategoryUpdate(BaseModel):
-    name: str | None = None
-    slug: str | None = None
-    description: str | None = None
-    parent_id: int | None = None
-    sort_order: int | None = None
-    status: str | None = None
-
-
-class NewsCategoryRead(ORMModel):
-    id: int
-    name: str
-    slug: str
-    description: str | None
-    parent_id: int | None
-    sort_order: int
-    status: str
-    created_at: datetime
-    updated_at: datetime
-
-
-# ─── NewsPost ────────────────────────────────────────────────────────────────
 
 class NewsPostCreate(BaseModel):
     title: str
@@ -48,7 +13,6 @@ class NewsPostCreate(BaseModel):
     content_json: str | None = None
     thumbnail_url: str | None = None
     image_id: int | None = None
-    category_id: int | None = None
     author: str | None = None
     status: str = "draft"
     is_featured: bool = False
@@ -66,7 +30,6 @@ class NewsPostUpdate(BaseModel):
     content_json: str | None = None
     thumbnail_url: str | None = None
     image_id: int | None = None
-    category_id: int | None = None
     author: str | None = None
     status: str | None = None
     is_featured: bool | None = None
@@ -86,8 +49,6 @@ class NewsPostRead(ORMModel):
     content_json: str | None
     thumbnail_url: str | None
     image_id: int | None
-    category_id: int | None
-    category: NewsCategoryRead | None = None
     author: str | None
     status: str
     is_featured: bool

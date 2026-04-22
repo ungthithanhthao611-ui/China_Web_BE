@@ -10,7 +10,7 @@ from app.models.media import EntityMedia, MediaAsset
 from app.models.navigation import Menu, MenuItem
 from app.models.organization import Branch, Contact, Video
 from app.models.products import ContactInquiry, Product, ProductCategory, ProductImage
-from app.models.projects import Project, ProjectCategory, ProjectCategoryItem
+from app.models.projects import Project, ProjectCategory, ProjectCategoryItem, ProjectProduct
 from app.schemas.products import InquiryCreate, ProductCategoryRead, ProductListItemRead, ProductRead
 from app.schemas.projects import ProjectCasePageRead
 from app.models.taxonomy import Language, SiteSetting
@@ -147,6 +147,34 @@ def _content_blocks(db: Session, entity_type: str, entity_id: int, language_id: 
             item_data["image"] = _serialize_media(item.image)
             block_data["items"].append(item_data)
         payload.append(block_data)
+    return payload
+
+
+def _serialize_project_products(project: Project) -> list[dict[str, Any]]:
+    items = sorted(
+        getattr(project, "project_products", []) or [],
+        key=lambda item: (item.sort_order, item.id),
+    )
+    payload: list[dict[str, Any]] = []
+    for item in items:
+        product = getattr(item, "product", None)
+        if not product or not product.is_active:
+            continue
+        payload.append(
+            {
+                "id": item.id,
+                "project_id": item.project_id,
+                "product_id": item.product_id,
+                "sort_order": item.sort_order,
+                "note": item.note,
+                "name": product.name,
+                "slug": product.slug,
+                "sku": product.sku,
+                "short_desc": product.short_desc,
+                "image_url": product.image_url,
+                "href": f"/products/{product.slug}",
+            }
+        )
     return payload
 
 
@@ -290,7 +318,12 @@ def get_project_detail(db: Session, slug: str, language_code: str) -> dict[str, 
     language = get_language(db, language_code)
     project = db.scalar(
         select(Project)
-        .options(selectinload(Project.image), selectinload(Project.hero_image), selectinload(Project.category))
+        .options(
+            selectinload(Project.image),
+            selectinload(Project.hero_image),
+            selectinload(Project.category),
+            selectinload(Project.project_products).selectinload(ProjectProduct.product),
+        )
         .where(Project.slug == slug, Project.language_id == language.id, Project.status == "published")
     )
     if not project:
@@ -304,6 +337,7 @@ def get_project_detail(db: Session, slug: str, language_code: str) -> dict[str, 
         if project.category
         else None
     )
+    data["used_products"] = _serialize_project_products(project)
     data["blocks"] = _content_blocks(db, "project", project.id, language.id)
     data["gallery"] = _entity_gallery(db, "project", project.id)
     return data
