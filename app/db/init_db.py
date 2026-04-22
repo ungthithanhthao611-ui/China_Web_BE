@@ -908,23 +908,12 @@ def seed_navigation(session: Session, language_id: int) -> None:
             "sort_order": 20,
         },
         {
-            "title": "Dự Án",
-            "url": "/project-case",
-            "sort_order": 30,
-        },
-        {
-<<<<<<< HEAD
             "title": "Tin Tức",
-            "url": "/news/corporate-news",
-            "sort_order": 40,
-=======
-            "title": "News Center",
             "url": "/news",
             "sort_order": 40,
             "children": [
-                {"title": "News Center", "url": "/news", "sort_order": 0},
+                {"title": "Tin Tức", "url": "/news", "sort_order": 0},
             ],
->>>>>>> de96dfd (tintuc: dang lam do)
         },
         {
             "title": "Liên Hệ",
@@ -950,24 +939,15 @@ def seed_navigation(session: Session, language_id: int) -> None:
             "sort_order": 20,
         },
         {
-<<<<<<< HEAD
-            "title": "Liên Hệ",
-=======
-            "title": "News Center",
+            "title": "Tin Tức",
             "url": "/news",
             "sort_order": 30,
             "children": [
-                {"title": "News Center", "url": "/news", "sort_order": 0},
+                {"title": "Tin Tức", "url": "/news", "sort_order": 0},
             ],
         },
         {
-            "title": "Social Responsibility",
-            "url": "/social-responsibility",
-            "sort_order": 40,
-        },
-        {
-            "title": "Contact Us",
->>>>>>> de96dfd (tintuc: dang lam do)
+            "title": "Liên Hệ",
             "url": "/contact#ctn2",
             "sort_order": 50,
         },
