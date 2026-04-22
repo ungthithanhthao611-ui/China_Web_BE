@@ -10,7 +10,7 @@ Dữ liệu lấy thẳng từ AboutPage.vue hard-code.
 Thiết kế idempotent: chạy lại không tạo duplicate.
 """
 
-from sqlalchemy import or_, select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.orm import Session
 
 from app.models.content import ContentBlock, ContentBlockItem, Page, PageSection
@@ -127,28 +127,28 @@ def seed_about_page(session: Session, language_id: int) -> None:
         session,
         slug="about",
         language_id=language_id,
-        title="About Us",
-        summary="China National Decoration Co., LTD. – Integrated design, construction, and delivery for premium spaces since 1984.",
+        title="Giới Thiệu",
+        summary="CÔNG TY TNHH THƯƠNG MẠI QUỐC TẾ THIÊN ĐỒNG VIỆT NAM chuyên cung cấp các dòng đá mềm – tấm ốp linh hoạt cao cấp.",
         body=None,
         page_type="about",
         parent_id=None,
         status="published",
-        meta_title="About Us | China Decor",
-        meta_description="Learn about China Decor – company introduction, chairman's speech, organization, corporate culture, development history, leadership care, and cooperative partners.",
+        meta_title="Giới Thiệu | THIÊN ĐỒNG VIỆT NAM",
+        meta_description="Thông tin về Công ty TNHH Thương mại Quốc tế Thiên Đông Việt Nam - chuyên cung cấp đá mềm, tấm ốp linh hoạt cao cấp.",
         sort_order=5,
     )
     pid = about.id
 
     # ── 2. Sections ────────────────────────────────────────────────────────
     sections_seed = [
-        ("hero", "About Hero", "hero", 10),
-        ("company_introduction", "Company Introduction", "content", 20),
-        ("chairman_speech", "Chairman's Speech", "content", 30),
-        ("organization_chart", "Organization Chart", "media", 40),
-        ("corporate_culture", "Corporate Culture", "content", 50),
-        ("development_course", "Development Course", "timeline", 60),
-        ("leadership_care", "Leadership Care", "gallery", 70),
-        ("cooperative_partner", "Cooperative Partner", "partners", 80),
+        ("hero", "Giới Thiệu Thiên Đông", "hero", 10),
+        ("company_introduction", "Về Chúng Tôi", "content", 20),
+        ("chairman_speech", "Tầm Nhìn & Chiến Lược", "content", 30),
+        ("organization_chart", "Sơ Đồ Tổ Chức", "media", 40),
+        ("corporate_culture", "Văn Hóa Doanh Nghiệp", "content", 50),
+        ("development_course", "Lịch Sử Phát Triển", "timeline", 60),
+        ("leadership_care", "Ban Lãnh Đạo", "gallery", 70),
+        ("cooperative_partner", "Đối Tác Hợp Tác", "partners", 80),
     ]
     for anchor, title, section_type, sort_order in sections_seed:
         _get_or_create_section(
@@ -181,14 +181,18 @@ def _seed_hero_blocks(session: Session, page_id: int, lang_id: int) -> None:
     # hero_summary
     b = _get_or_create_block(
         session, "page", page_id, "hero_summary", lang_id,
-        title="About Hero Summary", block_type="key_value", sort_order=10,
+        title="Tổng quan giới thiệu", block_type="key_value", sort_order=10,
     )
     _get_or_create_item(session, b.id, "headline",
-                        title="ABOUT US", sort_order=10)
+                        title="THIÊN ĐỒNG VIỆT NAM", sort_order=10)
     _get_or_create_item(session, b.id, "description",
-                        title="Hero description",
-                        content="This golden signboard - China Decoration embodies the efforts and accumulation of several generations of people from China Decoration.",
+                        title="Mô tả hero",
+                        content="Thiên Đông Việt Nam - Uy tín từ những điều nhỏ nhất. Chúng tôi kiến tạo không gian đẳng cấp bằng vật liệu đá mềm hiện đại.",
                         sort_order=20)
+    _get_or_create_item(session, b.id, "cover_image",
+                        title="Banner đầu trang",
+                        metadata_json={"src": "/images/banner/banner3.jpg"},
+                        sort_order=30)
 
     # hero_nav
     b = _get_or_create_block(
@@ -196,13 +200,12 @@ def _seed_hero_blocks(session: Session, page_id: int, lang_id: int) -> None:
         title="About Navigation Tabs", block_type="nav_list", sort_order=20,
     )
     nav_items = [
-        ("company_introduction", "Company Introduction"),
-        ("chairman_speech", "Chairman's Speech"),
-        ("organization_chart", "Organization Chart"),
-        ("corporate_culture", "Corporate Culture"),
-        ("development_course", "Development Course"),
-        ("leadership_care", "Leadership Care"),
-        ("cooperative_partner", "Cooperative Partner"),
+        ("company_introduction", "Giới Thiệu"),
+        ("chairman_speech", "Tầm Nhìn"),
+        ("organization_chart", "Sơ Đồ Tổ Chức"),
+        ("corporate_culture", "Giá Trị Cốt Lõi"),
+        ("development_course", "Lịch Sử"),
+        ("leadership_care", "Ban Lãnh Đạo"),
     ]
     for idx, (key, label) in enumerate(nav_items):
         _get_or_create_item(
@@ -217,12 +220,12 @@ def _seed_intro_blocks(session: Session, page_id: int, lang_id: int) -> None:
     # intro_media
     b = _get_or_create_block(
         session, "page", page_id, "intro_media", lang_id,
-        title="Company Introduction Media", block_type="media", sort_order=30,
+        title="Giới thiệu công ty", block_type="media", sort_order=30,
     )
     _get_or_create_item(session, b.id, "cover_image",
-                        title="Company introduction cover",
+                        title="Hình ảnh nền mục Giới thiệu",
                         sort_order=10,
-                        metadata_json={"src": _img("f1225086-4996-4f1d-88f9-08f4228a378e.png")})
+                        metadata_json={"src": _img("f1225086-4996-4f1d-886-08f4228a378e.png")})
 
     # intro_video
     b = _get_or_create_block(
@@ -238,21 +241,21 @@ def _seed_intro_blocks(session: Session, page_id: int, lang_id: int) -> None:
 
     # intro_paragraphs
     paragraphs = [
-        "China National Decoration Co., LTD. (hereinafter referred to as 'China Decoration') was established in 1984 with the approval of the State Economic Commission and the Ministry of Light Industry. It is the first batch of large-scale and high-grade decoration enterprises with Grade A qualification of indoor and outdoor building decoration construction and design. Large-scale cross-regional, cross-industry digital assembly type construction joint-stock decoration backbone enterprises.",
-        "China decoration takes 'innovative industry model, leading green development, and decorating a better life' as the enterprise mission. Adhere to the development path of meeting market demand, highlighting the characteristics of the company, and gathering force to innovate and build. The company now has architectural decoration engineering professional contracting level I, architectural decoration engineering professional design Grade A, exhibition exhibition engineering design and construction integration level I, exhibition engineering level I, museum exhibition exhibition design grade A, museum exhibition exhibition construction level I, building curtain wall, electronics and intelligence, building mechanical and electrical installation, steel structure, ancient buildings, building engineering construction general contracting, special engineering (structural reinforcement) and other professional qualifications.",
-        "Forty years of development, China Decoration has always adhered to the deep cultivation of architectural decoration design and construction of the decoration industry. Through years of business practice, China Decoration has set up a dual headquarters development base in Beijing and East China, set up a 'design research institute and ten management centers' and a structure model of multiple functional departments, and set up 7 design branches, 7 branches and 9 subsidiaries nationwide, with a large number of industry experts and technical talents.",
-        "Under the leadership of the Party committee and the board of directors of the company, China Decoration adheres to the corporate values of 'winning respect by character, improving happiness by quality, creating value by brand', and has always been in a leading position in the architectural decoration industry with strong professional strength and innovation ability. It has successively been rated as 'Top 100 enterprises in China's building decoration industry', 'National Building Decoration Award Star Enterprise', 'quality and trustworthy enterprise', 'enterprise credit evaluation AAA level credit enterprise', 'Top Ten most influential brands in China's decoration industry', 'Best design Enterprise of the Year' and 'National high-tech Enterprise'.",
-        "In the process of development, China Decoration insists on fulfilling its corporate social responsibility, devoting itself to charity undertakings for a long time, continuously donating money to various public welfare organizations, including Beihang Education Foundation, Beijing Red Cross Society, Beijing New Sunshine Charity Foundation, China Children and Youth Foundation, and carrying out activities such as claiming green space and earthquake donations, with a total donation amount of more than 30 million yuan.",
-        "In the new era of opportunities, China Decoration takes building domestic first-class intelligent technology, digital design, assembly and construction enterprises as the starting point and goal. It has formed a layout plan of 'building decoration design and construction as the core, digital design as the technical support, vocational education as the talent support, ecological environment, intelligent construction, assembly integration, green new energy materials four plates go hand in hand', creating the development pattern of China's decoration industry chain and promoting the transformation and upgrading of the company.",
+        "CÔNG TY TNHH THƯƠNG MẠI QUỐC TẾ THIÊN ĐỒNG VIỆT NAM chuyên cung cấp các dòng đá mềm – tấm ốp linh hoạt cao cấp, ứng dụng trong trang trí nội thất và ngoại thất hiện đại.",
+        "Mang đến giải pháp vật liệu ốp lát hiện đại, bền đẹp và tối ưu chi phí, giúp khách hàng nâng tầm không gian sống và công trình xây dựng.",
     ]
     b = _get_or_create_block(
         session, "page", page_id, "intro_paragraphs", lang_id,
-        title="Company Introduction Text", block_type="rich_text_list", sort_order=50,
+        title="Nội dung giới thiệu (Các đoạn văn)", block_type="rich_text_list", sort_order=50,
     )
+    
+    # Clear existing items for this block to remove old English paragraphs
+    session.execute(delete(ContentBlockItem).where(ContentBlockItem.block_id == b.id))
+    
     for idx, text in enumerate(paragraphs):
         _get_or_create_item(
             session, b.id, f"paragraph_{idx + 1}",
-            title=None,
+            title=f"Đoạn văn giới thiệu số {idx + 1}",
             content=text,
             sort_order=(idx + 1) * 10,
         )
@@ -262,26 +265,26 @@ def _seed_speech_blocks(session: Session, page_id: int, lang_id: int) -> None:
     # speech_profile
     b = _get_or_create_block(
         session, "page", page_id, "speech_profile", lang_id,
-        title="Chairman Portrait", block_type="media", sort_order=60,
+        title="Tầm Nhìn & Chiến Lược", block_type="media", sort_order=60,
     )
     _get_or_create_item(session, b.id, "portrait",
-                        title="Chairman portrait",
+                        title="Hình ảnh Giám đốc",
                         sort_order=10,
-                        metadata_json={"src": "/images/4e3ee279-9a2c-4021-8fbf-ce7c9aefc218.jpg"})
+                        metadata_json={"src": "https://res.cloudinary.com/db1b15yn4/image/upload/v1776694034/Image_20260418142413_9_3_m65uzj.jpg"})
 
     # speech_body
     speech_paragraphs = [
-        "Ladies and Gentlemen:\nThank leaders, colleagues and partners for their long-term support and love!",
-        "Forty years of trials and hardships is a magnificent history of struggle, but also a song of vigorous development. China Decoration Co., Ltd. from the early establishment of the reform and opening up to the growth and growth of the new century, all the way difficult, all the way bumpy, through an extraordinary development process. However, we always maintain the enthusiasm and reverence for the industry, uphold the quality concept of 'artisan spirit, the pursuit of quality', and cast quality models, which has won wide recognition and high praise from all walks of life.",
-        "We have always been convinced that 'excellence, pioneering and innovation' is the fundamental way for enterprises to occupy a leading position in the market, 'let every project become a high-quality project' is our ultimate pursuit of technological achievements, but also hidden in the quality of the company's profound brand. After years of precipitation and accumulation, China Decoration has developed into a cross-regional, cross-industry large-scale joint-stock building decoration enterprise, in the design technology, industrial structure, service mode, management ideas, brand quality, personnel training and other aspects of continuous innovation, continue to stimulate the new vitality of the industry, input new momentum for the market, and cultivate a large number of new professionals.",
-        "New quality productivity, leading the development of science and technology for China's building decoration industry to open the door of digitalization and intelligence. In the process of transformation and upgrading of the company, we firmly implement the new development concept, open the journey of high-quality development, focus on the application of new technologies, new materials, new processes and new equipment, practice the concept of innovation and green, promote the integration of industry and technology, and help China achieve the goal of 'double carbon', in order to create the greatest value for customers. Return the support and trust of the community to us.",
-        "The ancient great event, not only exceptional talent, but also perseverance. In the face of opportunities and challenges in the new era, China Decoration will continue to carry the mission of the times, break through the inherent barriers of the industry, open up a broader space for development, and keep up with the pace of the times. It will further promote the low-carbon transformation in the field of building decoration, digital transformation, intelligent assembly interior integrated decoration, intelligent construction, and the rapid development of new building industrialization, and become the leader and developer of China's building decoration industry.",
-        "We sincerely invite all partners to pursue their dreams, create a better space, and write a new chapter for the development of the field of architectural decoration in our country.",
+        "Thiên Đông Việt Nam hướng tới trở thành doanh nghiệp đi đầu tại Việt Nam trong lĩnh vực cung cấp tấm ốp trang trí đá mềm linh hoạt, không chỉ phục vụ nhu cầu trong nước mà còn vươn tầm ra thị trường quốc tế.",
+        "Chúng tôi cam kết không ngừng đổi mới, nâng cao chất lượng dịch vụ và sản phẩm để mang lại giá trị bền vững cho khách hàng và đối tác.",
     ]
     b = _get_or_create_block(
         session, "page", page_id, "speech_body", lang_id,
-        title="Chairman's Speech Text", block_type="rich_text_list", sort_order=70,
+        title="Tầm Nhìn & Chiến Lược", block_type="rich_text_list", sort_order=70,
     )
+    
+    # Clear existing items for this block
+    session.execute(delete(ContentBlockItem).where(ContentBlockItem.block_id == b.id))
+    
     for idx, text in enumerate(speech_paragraphs):
         _get_or_create_item(
             session, b.id, f"paragraph_{idx + 1}",
@@ -290,27 +293,28 @@ def _seed_speech_blocks(session: Session, page_id: int, lang_id: int) -> None:
             sort_order=(idx + 1) * 10,
         )
 
-    # speech_signature
+    # speech_signature - Set to empty to hide
     b = _get_or_create_block(
         session, "page", page_id, "speech_signature", lang_id,
         title="Chairman Signature", block_type="key_value", sort_order=80,
     )
     _get_or_create_item(session, b.id, "sign_title",
-                        title="Chairman of China Decoration Co., LTD.",
+                        title="",
                         sort_order=10)
     _get_or_create_item(session, b.id, "sign_name",
-                        title="Xin Jianlin",
+                        title="",
                         sort_order=20)
-    _get_or_create_item(session, b.id, "signature_image",
-                        title="Signature image",
-                        sort_order=30,
-                        metadata_json={"src": "/images/5ea063cc-18de-4c5c-8e82-3fb04d11f038.png"})
+    # Clear signature image as it's not provided
+    # _get_or_create_item(session, b.id, "signature_image",
+    #                     title="Signature image",
+    #                     sort_order=30,
+    #                     metadata_json={"src": "/images/5ea063cc-18de-4c5c-8e82-3fb04d11f038.png"})
 
 
 def _seed_org_chart_blocks(session: Session, page_id: int, lang_id: int) -> None:
     b = _get_or_create_block(
         session, "page", page_id, "org_chart_image", lang_id,
-        title="Organization Chart", block_type="media", sort_order=90,
+        title="Sơ Đồ Tổ Chức", block_type="media", sort_order=90,
     )
     _get_or_create_item(session, b.id, "main_chart",
                         title="Organization chart image",
@@ -321,38 +325,43 @@ def _seed_org_chart_blocks(session: Session, page_id: int, lang_id: int) -> None
 def _seed_culture_blocks(session: Session, page_id: int, lang_id: int) -> None:
     culture_data = [
         (
-            "culture_purpose", "Corporate Purpose", 100,
+            "culture_values", "Giá trị cốt lõi", 130,
             [
-                ("Customer satisfaction", "All the value of China Decoration comes from customers; without customers, there is nothing."),
-                ("Make employees proud", "Employee growth is the realistic foundation of the company's value."),
-                ("Let the world recognize", "Excellent enterprises must have a deep global strategic vision and international thinking, keep an open mind, and promote enterprises to internationalization."),
-            ],
-        ),
-        (
-            "culture_mission", "Corporate Mission", 110,
-            [
-                ("Innovative industry model", "The company welcomes change with a positive attitude, regards change as the biggest development opportunity, embraces the trend of digitalization, industrialization and intelligence, and innovates the industry development model."),
-                ("Leading the green development", "Actively explore the ecological science and technology business field, promote the development of circular economy, promote the construction of ecological civilization and high-level protection of the ecological environment, and help achieve the goal of carbon peak and carbon neutrality."),
-                ("Decorate a better life", "We are committed to making every member of society learn, work and live in an elegant and comfortable environment, and enjoy the fun of life."),
-            ],
-        ),
-        (
-            "culture_spirit", "Enterprise Spirit", 120,
-            [
-                ("Creating value", "Creating value is fundamental to the survival and development of China Decoration."),
-                ("Innovation and development", "Innovation and development is the core of the overall development of China Decoration. It is the first driving force for the development of China Decoration, advocating and practicing design technology, industrial structure, service mode, management ideas, brand quality and talent training innovation."),
-                ("Entrepreneurship is more than", "The best defense is offense, the best defense is entrepreneurship."),
-            ],
-        ),
-        (
-            "culture_values", "Value", 130,
-            [
-                ("Character to win respect", "People have quality, the root in the lattice, the emphasis on virtue."),
-                ("Quality to improve happiness", "To create diversified products and create a high quality of life is the meaning and value of people in China Decoration."),
-                ("Brand creation value", "The Chinese decorative national-name golden signboard condensed generations of people in 40 years of painstaking efforts, operations and management and value accumulation."),
+                ("Chất lượng", "Sản phẩm đạt tiêu chuẩn cao"),
+                ("Uy tín", "Cam kết đúng tiến độ, đúng chất lượng"),
+                ("Đổi mới", "Luôn cập nhật xu hướng vật liệu mới"),
+                ("Khách hàng là trung tâm", "Đặt nhu cầu khách hàng lên hàng đầu"),
+                ("Hợp tác lâu dài", "Phát triển bền vững cùng đối tác"),
             ],
         ),
     ]
+    
+    # Clear existing culture blocks to remove extra tabs
+    culture_keys = ["culture_purpose", "culture_mission", "culture_spirit", "culture_values"]
+    
+    # 1. Clear items first to avoid ForeignKeyViolation
+    session.execute(
+        delete(ContentBlockItem).where(
+            ContentBlockItem.block_id.in_(
+                select(ContentBlock.id).where(
+                    ContentBlock.entity_type == "page",
+                    ContentBlock.entity_id == page_id,
+                    ContentBlock.block_key.in_(culture_keys)
+                )
+            )
+        )
+    )
+    
+    # 2. Clear blocks
+    session.execute(
+        delete(ContentBlock).where(
+            ContentBlock.entity_type == "page",
+            ContentBlock.entity_id == page_id,
+            ContentBlock.block_key.in_(culture_keys)
+        )
+    )
+    session.flush()
+
     for block_key, block_title, sort_order, items in culture_data:
         b = _get_or_create_block(
             session, "page", page_id, block_key, lang_id,
@@ -369,29 +378,18 @@ def _seed_culture_blocks(session: Session, page_id: int, lang_id: int) -> None:
 
 def _seed_timeline_blocks(session: Session, page_id: int, lang_id: int) -> None:
     timeline_entries = [
-        (1984, 9, 'The company was approved to be established as "China Indoor Complete Sets Corporation"', ""),
-        (1985, 11, "The company undertook the first five-star hotel decoration project - Friendship Hotel project", _img("6d13d208-48e9-4b73-aee5-c356fa97ca03.jpg")),
-        (1989, 12, "The company held the first interior decoration exhibition in Beijing", _img("610aa7c0-9b72-44a2-bda2-48afb495ee95.jpg")),
-        (1992, 12, "Held the inauguration meeting of China Interior Decoration Complete Sets Group in the Great Hall of the People", _img("a481f2e2-5e24-4f0f-90d0-ef1a93986f03.jpg")),
-        (1995, 12, "The Party committee of the company held a party member meeting", _img("50808b66-5056-4c17-9ce9-c9fe80f31ca6.jpg")),
-        (1996, 12, "The company's office building has been completed", ""),
-        (1997, 9, "The company was renamed China Decoration (Group) Company", ""),
-        (2003, 1, "The first reform of China Decoration, registered by the State Administration for Industry and Commerce as China Decoration Co., LTD", ""),
-        (2009, 6, "The Henan Art Center project that the company participated in won the Luban Award of China Construction Engineering", ""),
-        (2009, 10, "The company presents to the 60th birthday of the motherland through the Tian'anmen LED display system", _img("3b800d78-091f-41b3-a57f-a6584ab2c64a.jpg")),
-        (2010, 12, "The company name is changed to China Decoration Co., LTD", ""),
-        (2011, 12, "Established Yangzhou Yangzijiang China Decoration Building Decoration Engineering Co., LTD., a joint venture with Yangzhou Yangzijiang Group", ""),
-        (2014, 12, 'The company held the 30th anniversary celebration of "Collection Glory Flying Dream" at the National Convention Center', _img("c6e0ed19-2885-4752-a334-9255baa8257b.jpg")),
-        (2015, 5, "Li Jiefeng, the former chairman of the company, was elected president and secretary-general of Beijing Architectural Decoration Association", ""),
-        (2016, 6, "The company passed the national high-tech enterprise identification", _img("f031b874-f982-4b1b-9ec2-9060a03e18a6.jpg")),
-        (2020, 6, "Xin Jianlin, the third chairman of the company, took over from China Decoration and set up a new executive team", _img("0f422b10-759a-4f1c-9ca7-43f739047ed8.jpg")),
-        (2025, 1, 'The Company Held a "Create and Fight for the Future" 40th Anniversary Celebration at the Beijing International Hotel Conference Center', _img("238a2ef1-f15e-4758-bd09-8167e7a86216.jpg")),
+        ("2024", "", "Thành lập công ty tại Bình Dương", ""),
+        ("2024 – nay", "", "Phát triển và phân phối sản phẩm đá mềm, mở rộng mạng lưới khách hàng trong và ngoài nước", ""),
     ]
 
     b = _get_or_create_block(
         session, "page", page_id, "timeline", lang_id,
-        title="Development Course Timeline", block_type="timeline", sort_order=140,
+        title="Lịch sử phát triển", block_type="timeline", sort_order=140,
     )
+
+    # CLEAR existing items first to remove old milestones
+    session.execute(delete(ContentBlockItem).where(ContentBlockItem.block_id == b.id))
+
     for idx, (year, month, title, image_url) in enumerate(timeline_entries):
         meta = {"year": year, "month": month}
         if image_url:
@@ -407,35 +405,28 @@ def _seed_timeline_blocks(session: Session, page_id: int, lang_id: int) -> None:
 def _seed_leadership_blocks(session: Session, page_id: int, lang_id: int) -> None:
     leadership_items = [
         (
-            "1985",
-            _img("6aafd3c9-4a3a-41d5-a585-5dd2a437a92f.png"),
-            "The former minister of light industry Yang Bo (right fourth) in early 1985 personally visited my company to undertake the completion of the friendship hotel decoration site market condolences.",
-        ),
-        (
-            "1995",
-            _img("227db1de-3a33-435f-8a68-6e4a10c7ac85.png"),
-            "The former president of the National Light Industry Federation Yu Zhen (left) and the relevant leaders of the ministries and commissions visited the company in person and guided the work in the conference room of the original rented office building.",
-        ),
-        (
-            "2001",
-            _img("63c5ff0a-119e-4573-864a-e45630fa1185.png"),
-            "The former president of the National Light Industry Association Chen Shineng (fourth from right) visited the company to inspect and guide the work, accompanied by the former company leader Wei Kun (third from right).",
-        ),
-        (
-            "2011",
-            _img("4dcf4307-673a-4386-b351-7dcdbf31dc05.png"),
-            "Ma Tinggui, President of China Building Decoration Association (second from left) visited the company to inspect and guide the work.",
-        ),
-        (
-            "2011b",
-            _img("e40a3fbe-4ba1-434c-9ae3-11f28e77e7ab.png"),
-            "China Light Industry Federation President Bo Zhengfa, Vice President Tao Xiaonian, China Interior Decoration Association President Liu Yu, Secretary General Zhang Li and other leading comrades visited the company to inspect and guide the work.",
+            "Giám đốc",
+            "https://res.cloudinary.com/db1b15yn4/image/upload/v1776694034/Image_20260418142413_9_3_m65uzj.jpg",
+            "Nguyễn Hà Thanh",
         ),
     ]
 
+    # Clear existing items to ensure only one person is shown
+    session.execute(
+        delete(ContentBlockItem).where(
+            ContentBlockItem.block_id.in_(
+                select(ContentBlock.id).where(
+                    ContentBlock.entity_type == "page",
+                    ContentBlock.entity_id == page_id,
+                    ContentBlock.block_key == "leadership_care_gallery"
+                )
+            )
+        )
+    )
+
     b = _get_or_create_block(
         session, "page", page_id, "leadership_care_gallery", lang_id,
-        title="Leadership Care Gallery", block_type="gallery", sort_order=150,
+        title="Góc Nhìn Ban Lãnh Đạo", block_type="gallery", sort_order=150,
     )
     for idx, (year, image_url, text) in enumerate(leadership_items):
         _get_or_create_item(
@@ -450,13 +441,13 @@ def _seed_partner_blocks(session: Session, page_id: int, lang_id: int) -> None:
     # partner_categories
     b = _get_or_create_block(
         session, "page", page_id, "partner_categories", lang_id,
-        title="Partner Categories", block_type="tab_list", sort_order=160,
+        title="Danh mục đối tác", block_type="tab_list", sort_order=160,
     )
     categories = [
-        ("strategic_cooperation", "Strategic Cooperation"),
-        ("business_cooperation", "Business Cooperation"),
-        ("institutional_cooperation", "Institutional Cooperation"),
-        ("industry_associations", "Industry Associations"),
+        ("strategic_cooperation", "Hợp Tác Chiến Lược"),
+        ("business_cooperation", "Hợp Tác Kinh Doanh"),
+        ("institutional_cooperation", "Hợp Tác Tổ Chức"),
+        ("industry_associations", "Hiệp Hội Ngành Nghề"),
     ]
     for idx, (key, label) in enumerate(categories):
         _get_or_create_item(
@@ -468,7 +459,7 @@ def _seed_partner_blocks(session: Session, page_id: int, lang_id: int) -> None:
     # partner_logos
     b = _get_or_create_block(
         session, "page", page_id, "partner_logos", lang_id,
-        title="Partner Logos", block_type="logo_grid", sort_order=170,
+        title="Logo đối tác", block_type="logo_grid", sort_order=170,
     )
 
     logos = [
