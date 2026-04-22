@@ -304,6 +304,10 @@ def list_entity_records(
         "is_active": is_active,
     }.items():
         if value is not None and hasattr(model, candidate):
+            # Skip language filter for Banners
+            if candidate == "language_id" and model is Banner:
+                continue
+                
             column = getattr(model, candidate)
             query = query.where(column == value)
             count_query = count_query.where(column == value)

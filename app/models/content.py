@@ -48,9 +48,10 @@ class Banner(BigIntPrimaryKeyMixin, TimestampMixin, Base):
     link: Mapped[str | None] = mapped_column(String(500))
     button_text: Mapped[str | None] = mapped_column(String(100))
     banner_type: Mapped[str | None] = mapped_column(String(100), index=True)
+    placement: Mapped[str | None] = mapped_column(String(100), index=True, default="home")
     focus_x: Mapped[float] = mapped_column(default=50.0, nullable=False)
     focus_y: Mapped[float] = mapped_column(default=50.0, nullable=False)
-    language_id: Mapped[int] = mapped_column(ForeignKey("languages.id"), nullable=False)
+    language_id: Mapped[int | None] = mapped_column(ForeignKey("languages.id"), nullable=True)
     sort_order: Mapped[int] = mapped_column(default=0, index=True, nullable=False)
     is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
 

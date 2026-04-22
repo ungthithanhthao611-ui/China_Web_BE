@@ -333,9 +333,10 @@ class BannerCreate(BaseModel):
     link: str | None = None
     button_text: str | None = None
     banner_type: str | None = None
+    placement: str | None = "home"
     focus_x: float = 50.0
     focus_y: float = 50.0
-    language_id: int
+    language_id: int | None = None
     sort_order: int = 0
     is_active: bool = True
 
@@ -348,6 +349,7 @@ class BannerUpdate(BaseModel):
     link: str | None = None
     button_text: str | None = None
     banner_type: str | None = None
+    placement: str | None = None
     focus_x: float | None = None
     focus_y: float | None = None
     language_id: int | None = None
@@ -364,9 +366,10 @@ class BannerRead(ORMModel):
     link: str | None
     button_text: str | None
     banner_type: str | None
+    placement: str | None
     focus_x: float
     focus_y: float
-    language_id: int
+    language_id: int | None
     sort_order: int
     is_active: bool
     created_at: datetime

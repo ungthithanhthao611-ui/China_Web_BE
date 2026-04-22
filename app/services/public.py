@@ -239,7 +239,7 @@ def list_banners(db: Session, language_code: str, banner_type: str | None) -> li
     query = (
         select(Banner)
         .options(selectinload(Banner.image))
-        .where(Banner.language_id == language.id, Banner.is_active.is_(True))
+        .where(Banner.is_active.is_(True))
         .order_by(Banner.sort_order, Banner.id)
     )
     if banner_type:
