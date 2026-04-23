@@ -162,7 +162,7 @@ def _serialize_project_products(project: Project) -> list[dict[str, Any]]:
             continue
         payload.append(
             {
-                "id": item.id,
+                "id": str(item.id),
                 "project_id": item.project_id,
                 "product_id": item.product_id,
                 "sort_order": item.sort_order,
@@ -301,6 +301,16 @@ def list_projects(
     items = db.scalars(ordered_query.offset(skip).limit(limit)).all()
 
     payload = []
+    project_ids = [item.id for item in items]
+    if project_ids:
+        project_media_groups = _entity_media_groups(
+            db=db,
+            entity_types="project",
+            entity_ids=project_ids,
+        )
+    else:
+        project_media_groups = {}
+
     for item in items:
         data = _serialize(ProjectRead, item)
         data["image"] = _serialize_media(item.image)
@@ -310,6 +320,12 @@ def list_projects(
             if item.category
             else None
         )
+        
+        media_groups = project_media_groups.get(item.id, {})
+        data["leftGallery"] = _media_group_urls(media_groups, "left_gallery")
+        data["rightGallery"] = _media_group_urls(media_groups, "right_gallery")
+        data["usedProducts"] = _serialize_project_products(item)
+        
         payload.append(data)
     return {"items": payload, "pagination": {"skip": skip, "limit": limit, "total": total}}
 
@@ -370,6 +386,7 @@ def get_project_case_page(
         .options(
             selectinload(ProjectCategoryItem.project).selectinload(Project.image),
             selectinload(ProjectCategoryItem.project).selectinload(Project.hero_image),
+            selectinload(ProjectCategoryItem.project).selectinload(Project.project_products).selectinload(ProjectProduct.product),
         )
         .where(
             ProjectCategoryItem.category_id.in_(category_ids),
@@ -410,15 +427,28 @@ def get_project_case_page(
             elif left_gallery:
                 right_gallery = [left_gallery[0]]
 
+        cover_image = (
+            (project.image.url if project.image and project.image.url else None)
+            or (project.hero_image.url if project.hero_image and project.hero_image.url else None)
+            or (left_gallery[0] if left_gallery else None)
+            or (right_gallery[0] if right_gallery else None)
+        )
+
         return {
+            "id": str(project.id),
+            "slug": project.slug,
             "anchor": item.anchor,
             "title": project.title,
             "summary": project.summary or "",
             "detailHref": f"/project/{project.slug}",
             "legacyDetailHref": project.legacy_detail_href,
+            "coverImage": cover_image,
             "leftGallery": left_gallery,
             "rightGallery": right_gallery,
             "layoutVariant": item.layout_variant or ("feature" if item.is_featured else "standard"),
+            "projectYear": project.project_year,
+            "location": project.location,
+            "usedProducts": _serialize_project_products(project),
         }
 
     category_cases: dict[int, list[dict[str, Any]]] = {}
@@ -439,6 +469,8 @@ def get_project_case_page(
             "id": str(row.id),
             "name": row.name,
             "slug": row.slug,
+            "description": row.description or "",
+            "projectCount": len(category_cases.get(row.id, [])),
         }
         for row in categories
     ]
