@@ -35,7 +35,7 @@ class Product(BigIntPrimaryKeyMixin, TimestampMixin, SortOrderMixin, Base):
     full_desc: Mapped[str | None] = mapped_column(Text)
     size: Mapped[str | None] = mapped_column(String(255))
     material: Mapped[str | None] = mapped_column(String(255))
-    color: Mapped[str | None] = mapped_column(String(255))
+    color: Mapped[str | None] = mapped_column(Text)
     use_case: Mapped[str | None] = mapped_column(Text)
     video_url: Mapped[str | None] = mapped_column(String(2000))
     catalog_pdf_url: Mapped[str | None] = mapped_column(String(2000))

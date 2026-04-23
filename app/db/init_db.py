@@ -27,6 +27,7 @@ def initialize_database() -> None:
     ensure_project_case_schema()
     ensure_project_products_schema()
     ensure_inquiry_schema()
+    ensure_product_schema()
     with SessionLocal() as session:
         seed_basics(session)
 
@@ -65,6 +66,19 @@ def ensure_inquiry_schema() -> None:
             if column_name in column_names:
                 continue
             conn.execute(text(f"ALTER TABLE contact_inquiries ADD COLUMN {column_name} {column_type}"))
+
+
+def ensure_product_schema() -> None:
+    with engine.begin() as conn:
+        inspector = inspect(conn)
+        table_names = set(inspector.get_table_names())
+        if "products" not in table_names:
+            return
+
+        columns = {column["name"]: column for column in inspector.get_columns("products")}
+        color_column = columns.get("color")
+        if color_column and str(color_column.get("type", "")).lower().startswith("character varying"):
+            conn.execute(text("ALTER TABLE products ALTER COLUMN color TYPE TEXT"))
 
 
 def ensure_media_schema() -> None:

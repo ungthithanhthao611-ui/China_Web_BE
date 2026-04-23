@@ -164,10 +164,15 @@ def serialize(db: Session, record: Any, registration: EntityRegistration) -> dic
 
 
 def _sync_product_images(db: Session, product: Product, gallery_urls: str | None) -> None:
+    raw_gallery_urls = str(gallery_urls or "").strip()
+    if not raw_gallery_urls:
+        # Empty gallery input should not wipe existing product images on update.
+        return
+
     product.images.clear()
     urls = [
         line.strip()
-        for line in str(gallery_urls or "").replace("\r", "\n").split("\n")
+        for line in raw_gallery_urls.replace("\r", "\n").split("\n")
         if line.strip()
     ]
     for index, url in enumerate(urls):
@@ -353,7 +358,7 @@ def create_entity_record(db: Session, entity_name: str, payload: dict[str, Any])
     db.add(record)
     try:
         db.commit()
-        if entity_name == "products" and product_gallery_urls is not None:
+        if entity_name == "products" and str(product_gallery_urls or "").strip():
             _sync_product_images(db, record, product_gallery_urls)
             db.add(record)
             db.commit()
@@ -392,7 +397,7 @@ def update_entity_record(db: Session, entity_name: str, record_id: int, payload:
     for field_name, value in data.items():
         setattr(record, field_name, value)
 
-    if entity_name == "products" and product_gallery_urls is not None:
+    if entity_name == "products" and str(product_gallery_urls or "").strip():
         _sync_product_images(db, record, product_gallery_urls)
 
     db.add(record)
