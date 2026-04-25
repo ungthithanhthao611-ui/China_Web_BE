@@ -1,4 +1,4 @@
-from sqlalchemy import select, delete
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 from app.models.products import Product, ProductCategory
 
@@ -32,13 +32,27 @@ def seed_products(session: Session) -> None:
         ("OS.17", "Gạch thẻ cổ điển"),
     ]
 
-    # 3. Clear existing products (as requested: "cái nào k đúng dl thì xóa")
-    session.execute(delete(Product))
-    session.flush()
+    # 3. Upsert by SKU: only create new products, never delete existing ones.
+    #    This preserves product IDs, image_url, and product_images relationships.
+    existing_by_sku = {
+        p.sku: p for p in session.scalars(select(Product)).all() if p.sku
+    }
 
-    # 4. Add new products
     for idx, (sku, name) in enumerate(products_data):
         slug = f"da-mem-{sku.lower().replace('.', '-')}"
+        sort_order = (idx + 1) * 10
+
+        existing = existing_by_sku.get(sku)
+        if existing:
+            # Update only structural fields that won't overwrite user data.
+            # Do NOT overwrite image_url, short_desc, full_desc, etc.
+            if not existing.category_id:
+                existing.category_id = category.id
+            if not existing.slug:
+                existing.slug = slug
+            session.add(existing)
+            continue
+
         product = Product(
             category_id=category.id,
             sku=sku,
@@ -49,8 +63,8 @@ def seed_products(session: Session) -> None:
             size="600x1200mm (Kích thước mẫu)",
             material="Bột đá tự nhiên & Polymer",
             is_active=True,
-            sort_order=(idx + 1) * 10
+            sort_order=sort_order,
         )
         session.add(product)
-    
+
     session.flush()
