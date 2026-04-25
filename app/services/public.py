@@ -207,20 +207,44 @@ def _build_menu_tree(items: list[MenuItem]) -> list[dict[str, Any]]:
 
 def get_bootstrap_payload(db: Session, language_code: str) -> dict[str, Any]:
     language = get_language(db, language_code)
-    menus = db.scalars(
+    active_menus = db.scalars(
         select(Menu)
         .options(selectinload(Menu.items))
-        .where(Menu.language_id == language.id, Menu.is_active.is_(True))
-        .order_by(Menu.id)
+        .where(Menu.is_active.is_(True))
+        .order_by(Menu.location, Menu.language_id, Menu.id)
     ).all()
     settings_rows = db.scalars(
         select(SiteSetting).where(or_(SiteSetting.language_id == language.id, SiteSetting.language_id.is_(None)))
     ).all()
     banners = list_banners(db=db, language_code=language.code, banner_type="hero")
 
+    default_language = _get_default_language(db)
+    menus_by_location: dict[str, Menu] = {}
+
+    for menu in active_menus:
+        location_key = str(menu.location or menu.name or f"menu-{menu.id}").strip()
+        if not location_key:
+            continue
+
+        current = menus_by_location.get(location_key)
+        if current is None:
+            menus_by_location[location_key] = menu
+            continue
+
+        current_priority = (
+            0 if current.language_id == language.id else 1 if default_language and current.language_id == default_language.id else 2,
+            current.id,
+        )
+        next_priority = (
+            0 if menu.language_id == language.id else 1 if default_language and menu.language_id == default_language.id else 2,
+            menu.id,
+        )
+        if next_priority < current_priority:
+            menus_by_location[location_key] = menu
+
     menu_payload = {}
-    for menu in menus:
-        menu_payload[menu.location or menu.name] = {
+    for location_key, menu in menus_by_location.items():
+        menu_payload[location_key] = {
             "id": menu.id,
             "name": menu.name,
             "items": _build_menu_tree(menu.items),
@@ -289,7 +313,7 @@ def list_projects(
     base_query = (
         select(Project)
         .options(selectinload(Project.image), selectinload(Project.hero_image), selectinload(Project.category))
-        .where(Project.language_id == language.id, Project.status == "published")
+        .where(Project.status == "published")
     )
     if category_slug:
         base_query = base_query.join(ProjectCategory).where(ProjectCategory.slug == category_slug)
@@ -340,7 +364,7 @@ def get_project_detail(db: Session, slug: str, language_code: str) -> dict[str, 
             selectinload(Project.category),
             selectinload(Project.project_products).selectinload(ProjectProduct.product),
         )
-        .where(Project.slug == slug, Project.language_id == language.id, Project.status == "published")
+        .where(Project.slug == slug, Project.status == "published")
     )
     if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found.")
@@ -391,7 +415,6 @@ def get_project_case_page(
         .where(
             ProjectCategoryItem.category_id.in_(category_ids),
             Project.status == "published",
-            Project.language_id == language.id,
         )
         .order_by(ProjectCategoryItem.category_id, ProjectCategoryItem.sort_order, ProjectCategoryItem.id)
     ).all()

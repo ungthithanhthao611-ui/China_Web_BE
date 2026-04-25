@@ -1034,8 +1034,11 @@ def seed_navigation(session: Session, language_id: int) -> None:
         is_active=True,
     )
 
-    _replace_menu_items(session=session, menu=header_menu, nodes=header_items)
-    _replace_menu_items(session=session, menu=footer_menu, nodes=footer_items)
+    if not header_menu.items:
+        _replace_menu_items(session=session, menu=header_menu, nodes=header_items)
+
+    if not footer_menu.items:
+        _replace_menu_items(session=session, menu=footer_menu, nodes=footer_items)
 
 
 def _upsert_menu(session: Session, name: str, location: str, language_id: int, is_active: bool) -> Menu:
