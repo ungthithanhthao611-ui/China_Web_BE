@@ -1,0 +1,11 @@
+{
+  "summary": {
+    "mode": "dry_run",
+    "expected_root": "China_web",
+    "expected_products_folder": "products",
+    "selected_ready_items": 0,
+    "success_count": 0,
+    "failed_count": 0
+  },
+  "results": []
+}

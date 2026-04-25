@@ -1,0 +1,192 @@
+{
+  "summary": {
+    "expected_root": "China_web",
+    "expected_products_folder": "products",
+    "total_mismatched_assets": 7,
+    "ready_to_migrate": 0,
+    "manual_review_required": 7
+  },
+  "plan": [
+    {
+      "media_id": 1,
+      "title": "Corporate hero image",
+      "file_name": "hero-home.jpg",
+      "current_url": "https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1600&q=80",
+      "current_storage_path": "seed/hero-home.jpg",
+      "current_public_id": "seed/hero-home.jpg",
+      "reasons": [
+        "wrong_root_folder"
+      ],
+      "migration_status": "manual_review",
+      "review_notes": [
+        "Asset chưa liên kết sản phẩm hoặc thuộc module khác; cần quyết định chuẩn folder riêng.",
+        "Asset seed cũ đang ở folder seed/. Nên xác nhận module sử dụng trước khi migrate."
+      ],
+      "target_folder": null,
+      "target_public_id": null,
+      "target_url_hint": null,
+      "linked_product": null,
+      "why": [
+        "wrong_root_folder"
+      ]
+    },
+    {
+      "media_id": 2,
+      "title": "About section image",
+      "file_name": "about-section.jpg",
+      "current_url": "https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?auto=format&fit=crop&w=1200&q=80",
+      "current_storage_path": "seed/about-section.jpg",
+      "current_public_id": "seed/about-section.jpg",
+      "reasons": [
+        "wrong_root_folder"
+      ],
+      "migration_status": "manual_review",
+      "review_notes": [
+        "Asset chưa liên kết sản phẩm hoặc thuộc module khác; cần quyết định chuẩn folder riêng.",
+        "Asset seed cũ đang ở folder seed/. Nên xác nhận module sử dụng trước khi migrate."
+      ],
+      "target_folder": null,
+      "target_public_id": null,
+      "target_url_hint": null,
+      "linked_product": null,
+      "why": [
+        "wrong_root_folder"
+      ]
+    },
+    {
+      "media_id": 3,
+      "title": "Contact office image",
+      "file_name": "contact-map.jpg",
+      "current_url": "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1200&q=80",
+      "current_storage_path": "seed/contact-map.jpg",
+      "current_public_id": "seed/contact-map.jpg",
+      "reasons": [
+        "wrong_root_folder"
+      ],
+      "migration_status": "manual_review",
+      "review_notes": [
+        "Asset chưa liên kết sản phẩm hoặc thuộc module khác; cần quyết định chuẩn folder riêng.",
+        "Asset seed cũ đang ở folder seed/. Nên xác nhận module sử dụng trước khi migrate."
+      ],
+      "target_folder": null,
+      "target_public_id": null,
+      "target_url_hint": null,
+      "linked_product": null,
+      "why": [
+        "wrong_root_folder"
+      ]
+    },
+    {
+      "media_id": 4,
+      "title": "Travertine",
+      "file_name": "OS.01.11.34 Trắng ngà (1).jpg",
+      "current_url": "https://res.cloudinary.com/db1b15yn4/image/upload/v1776959230/china-web/products/travertine.jpg",
+      "current_storage_path": "china-web/products/travertine",
+      "current_public_id": "china-web/products/travertine",
+      "reasons": [
+        "wrong_root_folder"
+      ],
+      "migration_status": "manual_review",
+      "review_notes": [
+        "Asset chưa liên kết sản phẩm hoặc thuộc module khác; cần quyết định chuẩn folder riêng."
+      ],
+      "target_folder": null,
+      "target_public_id": null,
+      "target_url_hint": null,
+      "linked_product": null,
+      "why": [
+        "wrong_root_folder"
+      ]
+    },
+    {
+      "media_id": 5,
+      "title": "Travertine",
+      "file_name": "OS.01.12.34 Trắng kem (1).jpg",
+      "current_url": "https://res.cloudinary.com/db1b15yn4/image/upload/v1776959244/china-web/products/travertine.jpg",
+      "current_storage_path": "china-web/products/travertine",
+      "current_public_id": "china-web/products/travertine",
+      "reasons": [
+        "product_folder_mismatch",
+        "wrong_root_folder"
+      ],
+      "migration_status": "manual_review",
+      "review_notes": [
+        "Sản phẩm liên kết chưa có slug nên chưa thể tính folder đích chắc chắn."
+      ],
+      "target_folder": null,
+      "target_public_id": null,
+      "target_url_hint": null,
+      "linked_product": {
+        "product_id": 81,
+        "slug": null,
+        "sku": null,
+        "name": null,
+        "source": "product_images.url"
+      },
+      "why": [
+        "product_folder_mismatch",
+        "wrong_root_folder"
+      ]
+    },
+    {
+      "media_id": 6,
+      "title": "Travertine",
+      "file_name": "OS.01.21.34 Xám sáng (1).jpg",
+      "current_url": "https://res.cloudinary.com/db1b15yn4/image/upload/v1776959248/china-web/products/travertine.jpg",
+      "current_storage_path": "china-web/products/travertine",
+      "current_public_id": "china-web/products/travertine",
+      "reasons": [
+        "product_folder_mismatch",
+        "wrong_root_folder"
+      ],
+      "migration_status": "manual_review",
+      "review_notes": [
+        "Sản phẩm liên kết chưa có slug nên chưa thể tính folder đích chắc chắn."
+      ],
+      "target_folder": null,
+      "target_public_id": null,
+      "target_url_hint": null,
+      "linked_product": {
+        "product_id": 81,
+        "slug": null,
+        "sku": null,
+        "name": null,
+        "source": "product_images.url"
+      },
+      "why": [
+        "product_folder_mismatch",
+        "wrong_root_folder"
+      ]
+    },
+    {
+      "media_id": 7,
+      "title": "Travertine",
+      "file_name": "OS.01.41.34 Vàng kem (1).jpg",
+      "current_url": "https://res.cloudinary.com/db1b15yn4/image/upload/v1776959251/china-web/products/travertine.jpg",
+      "current_storage_path": "china-web/products/travertine",
+      "current_public_id": "china-web/products/travertine",
+      "reasons": [
+        "product_folder_mismatch",
+        "wrong_root_folder"
+      ],
+      "migration_status": "manual_review",
+      "review_notes": [
+        "Sản phẩm liên kết chưa có slug nên chưa thể tính folder đích chắc chắn."
+      ],
+      "target_folder": null,
+      "target_public_id": null,
+      "target_url_hint": null,
+      "linked_product": {
+        "product_id": 81,
+        "slug": null,
+        "sku": null,
+        "name": null,
+        "source": "product_images.url"
+      },
+      "why": [
+        "product_folder_mismatch",
+        "wrong_root_folder"
+      ]
+    }
+  ]
+}

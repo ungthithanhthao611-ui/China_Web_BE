@@ -1,0 +1,241 @@
+{
+  "summary": {
+    "media_ids": [
+      4,
+      5,
+      6,
+      7
+    ],
+    "checked_count": 4
+  },
+  "entries": [
+    {
+      "media": {
+        "id": 4,
+        "title": "Travertine",
+        "file_name": "OS.01.11.34 Trắng ngà (1).jpg",
+        "url": "https://res.cloudinary.com/db1b15yn4/image/upload/v1776959230/china-web/products/travertine.jpg",
+        "storage_path": "china-web/products/travertine",
+        "storage_leaf": "travertine"
+      },
+      "direct_product_image_url_matches": [],
+      "gallery_url_matches": [],
+      "candidate_products": [
+        {
+          "product_id": 421,
+          "slug": "da-mem-os-01",
+          "sku": "OS.01",
+          "name": "Travertine",
+          "score": 90.0,
+          "reasons": [
+            "Title media trùng tên sản phẩm",
+            "Tên file chứa SKU sản phẩm"
+          ],
+          "current_image_url": null,
+          "matching_gallery_image_ids": []
+        },
+        {
+          "product_id": 422,
+          "slug": "da-mem-os-01-3d",
+          "sku": "OS.01.3D",
+          "name": "Travertine 3D",
+          "score": 34.78,
+          "reasons": [
+            "Title gần giống tên sản phẩm (0.87)"
+          ],
+          "current_image_url": null,
+          "matching_gallery_image_ids": []
+        }
+      ],
+      "recommendation": {
+        "action": "likely_map_to_product",
+        "target_product_id": 421,
+        "target_product_slug": "da-mem-os-01",
+        "confidence": "medium",
+        "notes": [
+          "Ứng viên mạnh nhất có độ tương đồng cao, nhưng nên review trước khi migrate."
+        ]
+      }
+    },
+    {
+      "media": {
+        "id": 5,
+        "title": "Travertine",
+        "file_name": "OS.01.12.34 Trắng kem (1).jpg",
+        "url": "https://res.cloudinary.com/db1b15yn4/image/upload/v1776959244/china-web/products/travertine.jpg",
+        "storage_path": "china-web/products/travertine",
+        "storage_leaf": "travertine"
+      },
+      "direct_product_image_url_matches": [],
+      "gallery_url_matches": [
+        {
+          "product_image_id": 1,
+          "product_id": 81,
+          "sort_order": 0,
+          "alt": "Travertine",
+          "product_exists": false,
+          "product_slug": null,
+          "product_name": null,
+          "product_sku": null
+        }
+      ],
+      "candidate_products": [
+        {
+          "product_id": 421,
+          "slug": "da-mem-os-01",
+          "sku": "OS.01",
+          "name": "Travertine",
+          "score": 90.0,
+          "reasons": [
+            "Title media trùng tên sản phẩm",
+            "Tên file chứa SKU sản phẩm"
+          ],
+          "current_image_url": null,
+          "matching_gallery_image_ids": []
+        },
+        {
+          "product_id": 422,
+          "slug": "da-mem-os-01-3d",
+          "sku": "OS.01.3D",
+          "name": "Travertine 3D",
+          "score": 34.78,
+          "reasons": [
+            "Title gần giống tên sản phẩm (0.87)"
+          ],
+          "current_image_url": null,
+          "matching_gallery_image_ids": []
+        }
+      ],
+      "recommendation": {
+        "action": "likely_map_to_product",
+        "target_product_id": 421,
+        "target_product_slug": "da-mem-os-01",
+        "confidence": "medium",
+        "notes": [
+          "Ứng viên mạnh nhất có độ tương đồng cao, nhưng nên review trước khi migrate.",
+          "Phát hiện product_images trỏ tới product_id mồ côi; cần xử lý lại mapping gallery."
+        ]
+      }
+    },
+    {
+      "media": {
+        "id": 6,
+        "title": "Travertine",
+        "file_name": "OS.01.21.34 Xám sáng (1).jpg",
+        "url": "https://res.cloudinary.com/db1b15yn4/image/upload/v1776959248/china-web/products/travertine.jpg",
+        "storage_path": "china-web/products/travertine",
+        "storage_leaf": "travertine"
+      },
+      "direct_product_image_url_matches": [],
+      "gallery_url_matches": [
+        {
+          "product_image_id": 2,
+          "product_id": 81,
+          "sort_order": 1,
+          "alt": "Travertine",
+          "product_exists": false,
+          "product_slug": null,
+          "product_name": null,
+          "product_sku": null
+        }
+      ],
+      "candidate_products": [
+        {
+          "product_id": 421,
+          "slug": "da-mem-os-01",
+          "sku": "OS.01",
+          "name": "Travertine",
+          "score": 90.0,
+          "reasons": [
+            "Title media trùng tên sản phẩm",
+            "Tên file chứa SKU sản phẩm"
+          ],
+          "current_image_url": null,
+          "matching_gallery_image_ids": []
+        },
+        {
+          "product_id": 422,
+          "slug": "da-mem-os-01-3d",
+          "sku": "OS.01.3D",
+          "name": "Travertine 3D",
+          "score": 34.78,
+          "reasons": [
+            "Title gần giống tên sản phẩm (0.87)"
+          ],
+          "current_image_url": null,
+          "matching_gallery_image_ids": []
+        }
+      ],
+      "recommendation": {
+        "action": "likely_map_to_product",
+        "target_product_id": 421,
+        "target_product_slug": "da-mem-os-01",
+        "confidence": "medium",
+        "notes": [
+          "Ứng viên mạnh nhất có độ tương đồng cao, nhưng nên review trước khi migrate.",
+          "Phát hiện product_images trỏ tới product_id mồ côi; cần xử lý lại mapping gallery."
+        ]
+      }
+    },
+    {
+      "media": {
+        "id": 7,
+        "title": "Travertine",
+        "file_name": "OS.01.41.34 Vàng kem (1).jpg",
+        "url": "https://res.cloudinary.com/db1b15yn4/image/upload/v1776959251/china-web/products/travertine.jpg",
+        "storage_path": "china-web/products/travertine",
+        "storage_leaf": "travertine"
+      },
+      "direct_product_image_url_matches": [],
+      "gallery_url_matches": [
+        {
+          "product_image_id": 3,
+          "product_id": 81,
+          "sort_order": 2,
+          "alt": "Travertine",
+          "product_exists": false,
+          "product_slug": null,
+          "product_name": null,
+          "product_sku": null
+        }
+      ],
+      "candidate_products": [
+        {
+          "product_id": 421,
+          "slug": "da-mem-os-01",
+          "sku": "OS.01",
+          "name": "Travertine",
+          "score": 90.0,
+          "reasons": [
+            "Title media trùng tên sản phẩm",
+            "Tên file chứa SKU sản phẩm"
+          ],
+          "current_image_url": null,
+          "matching_gallery_image_ids": []
+        },
+        {
+          "product_id": 422,
+          "slug": "da-mem-os-01-3d",
+          "sku": "OS.01.3D",
+          "name": "Travertine 3D",
+          "score": 34.78,
+          "reasons": [
+            "Title gần giống tên sản phẩm (0.87)"
+          ],
+          "current_image_url": null,
+          "matching_gallery_image_ids": []
+        }
+      ],
+      "recommendation": {
+        "action": "likely_map_to_product",
+        "target_product_id": 421,
+        "target_product_slug": "da-mem-os-01",
+        "confidence": "medium",
+        "notes": [
+          "Ứng viên mạnh nhất có độ tương đồng cao, nhưng nên review trước khi migrate.",
+          "Phát hiện product_images trỏ tới product_id mồ côi; cần xử lý lại mapping gallery."
+        ]
+      }
+    }
+  ]
+}

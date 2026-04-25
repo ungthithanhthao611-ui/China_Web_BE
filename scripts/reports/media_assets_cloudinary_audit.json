@@ -1,0 +1,131 @@
+{
+  "summary": {
+    "total_media_assets": 11,
+    "cloudinary_assets": 11,
+    "unlinked_cloudinary_assets": 5,
+    "mismatched_assets": 7,
+    "product_linked_assets": 6,
+    "expected_root": "China_web",
+    "expected_products_folder": "products"
+  },
+  "mismatches": [
+    {
+      "media_id": 1,
+      "title": "Corporate hero image",
+      "file_name": "hero-home.jpg",
+      "url": "https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1600&q=80",
+      "storage_path": "seed/hero-home.jpg",
+      "actual_folder": "seed/hero-home.jpg",
+      "expected_folder": null,
+      "reasons": [
+        "wrong_root_folder"
+      ],
+      "linked_products": []
+    },
+    {
+      "media_id": 2,
+      "title": "About section image",
+      "file_name": "about-section.jpg",
+      "url": "https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?auto=format&fit=crop&w=1200&q=80",
+      "storage_path": "seed/about-section.jpg",
+      "actual_folder": "seed/about-section.jpg",
+      "expected_folder": null,
+      "reasons": [
+        "wrong_root_folder"
+      ],
+      "linked_products": []
+    },
+    {
+      "media_id": 3,
+      "title": "Contact office image",
+      "file_name": "contact-map.jpg",
+      "url": "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1200&q=80",
+      "storage_path": "seed/contact-map.jpg",
+      "actual_folder": "seed/contact-map.jpg",
+      "expected_folder": null,
+      "reasons": [
+        "wrong_root_folder"
+      ],
+      "linked_products": []
+    },
+    {
+      "media_id": 4,
+      "title": "Travertine",
+      "file_name": "OS.01.11.34 Trắng ngà (1).jpg",
+      "url": "https://res.cloudinary.com/db1b15yn4/image/upload/v1776959230/china-web/products/travertine.jpg",
+      "storage_path": "china-web/products/travertine",
+      "actual_folder": "china-web/products/travertine",
+      "expected_folder": null,
+      "reasons": [
+        "wrong_root_folder"
+      ],
+      "linked_products": []
+    },
+    {
+      "media_id": 5,
+      "title": "Travertine",
+      "file_name": "OS.01.12.34 Trắng kem (1).jpg",
+      "url": "https://res.cloudinary.com/db1b15yn4/image/upload/v1776959244/china-web/products/travertine.jpg",
+      "storage_path": "china-web/products/travertine",
+      "actual_folder": "china-web/products/travertine",
+      "expected_folder": "China_web/products",
+      "reasons": [
+        "product_folder_mismatch",
+        "wrong_root_folder"
+      ],
+      "linked_products": [
+        {
+          "product_id": 81,
+          "slug": null,
+          "sku": null,
+          "name": null,
+          "source": "product_images.url"
+        }
+      ]
+    },
+    {
+      "media_id": 6,
+      "title": "Travertine",
+      "file_name": "OS.01.21.34 Xám sáng (1).jpg",
+      "url": "https://res.cloudinary.com/db1b15yn4/image/upload/v1776959248/china-web/products/travertine.jpg",
+      "storage_path": "china-web/products/travertine",
+      "actual_folder": "china-web/products/travertine",
+      "expected_folder": "China_web/products",
+      "reasons": [
+        "product_folder_mismatch",
+        "wrong_root_folder"
+      ],
+      "linked_products": [
+        {
+          "product_id": 81,
+          "slug": null,
+          "sku": null,
+          "name": null,
+          "source": "product_images.url"
+        }
+      ]
+    },
+    {
+      "media_id": 7,
+      "title": "Travertine",
+      "file_name": "OS.01.41.34 Vàng kem (1).jpg",
+      "url": "https://res.cloudinary.com/db1b15yn4/image/upload/v1776959251/china-web/products/travertine.jpg",
+      "storage_path": "china-web/products/travertine",
+      "actual_folder": "china-web/products/travertine",
+      "expected_folder": "China_web/products",
+      "reasons": [
+        "product_folder_mismatch",
+        "wrong_root_folder"
+      ],
+      "linked_products": [
+        {
+          "product_id": 81,
+          "slug": null,
+          "sku": null,
+          "name": null,
+          "source": "product_images.url"
+        }
+      ]
+    }
+  ]
+}

@@ -427,28 +427,15 @@ def get_project_case_page(
             elif left_gallery:
                 right_gallery = [left_gallery[0]]
 
-        cover_image = (
-            (project.image.url if project.image and project.image.url else None)
-            or (project.hero_image.url if project.hero_image and project.hero_image.url else None)
-            or (left_gallery[0] if left_gallery else None)
-            or (right_gallery[0] if right_gallery else None)
-        )
-
         return {
-            "id": str(project.id),
-            "slug": project.slug,
             "anchor": item.anchor,
             "title": project.title,
             "summary": project.summary or "",
             "detailHref": f"/project/{project.slug}",
             "legacyDetailHref": project.legacy_detail_href,
-            "coverImage": cover_image,
             "leftGallery": left_gallery,
             "rightGallery": right_gallery,
             "layoutVariant": item.layout_variant or ("feature" if item.is_featured else "standard"),
-            "projectYear": project.project_year,
-            "location": project.location,
-            "usedProducts": _serialize_project_products(project),
         }
 
     category_cases: dict[int, list[dict[str, Any]]] = {}
@@ -469,8 +456,6 @@ def get_project_case_page(
             "id": str(row.id),
             "name": row.name,
             "slug": row.slug,
-            "description": row.description or "",
-            "projectCount": len(category_cases.get(row.id, [])),
         }
         for row in categories
     ]
