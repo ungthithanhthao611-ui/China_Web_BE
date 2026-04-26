@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     cloudinary_cloud_name: str = ""
     cloudinary_api_key: str = ""
     cloudinary_api_secret: str = ""
-    cloudinary_folder: str = "china-web"
+    cloudinary_folder: str = "China_web"
     wp_base_url: str = ""
     wp_username: str = ""
     wp_app_password: str = ""

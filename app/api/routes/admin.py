@@ -1,6 +1,7 @@
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, require_admin_user
@@ -25,7 +26,16 @@ from app.services.admin_navigation import (
     replace_navigation_menu_tree,
     update_navigation_menu,
 )
-from app.services.media import create_uploaded_media_asset
+from app.services.media import create_remote_media_asset, create_uploaded_media_asset
+
+
+class AdminRemoteMediaImportPayload(BaseModel):
+    source_url: str
+    title: str | None = None
+    alt_text: str | None = None
+    asset_folder: str | None = None
+    public_id_base: str | None = None
+
 
 router = APIRouter(dependencies=[Depends(require_admin_user)])
 
@@ -102,6 +112,21 @@ async def upload_media_asset(
     )
 
 
+@router.post('/media/import-url', status_code=status.HTTP_201_CREATED)
+def import_media_asset_from_url(
+    payload: AdminRemoteMediaImportPayload,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    return create_remote_media_asset(
+        db=db,
+        source_url=payload.source_url,
+        title=payload.title,
+        alt_text=payload.alt_text,
+        asset_folder=payload.asset_folder,
+        public_id_base=payload.public_id_base,
+    )
+
+
 @router.get('/{entity_name}')
 def list_entity(
     entity_name: str,
@@ -112,6 +137,10 @@ def list_entity(
     status_value: str | None = Query(default=None, alias="status"),
     is_active: bool | None = Query(default=None),
     search: str | None = Query(default=None, min_length=1),
+    section_key: str | None = Query(default=None),
+    block_key: str | None = Query(default=None),
+    completeness: str | None = Query(default=None),
+    media_state: str | None = Query(default=None),
 ) -> dict[str, Any]:
     return list_entity_records(
         db=db,
@@ -122,6 +151,10 @@ def list_entity(
         status_value=status_value,
         is_active=is_active,
         search=search,
+        section_key=section_key,
+        block_key=block_key,
+        completeness=completeness,
+        media_state=media_state,
     )
 
 

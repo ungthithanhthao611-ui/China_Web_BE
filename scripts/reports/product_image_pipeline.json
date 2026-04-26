@@ -1,0 +1,937 @@
+{
+  "summary": {
+    "pipeline_status": "WARN",
+    "csv_input": "E:\\uiChina_Web\\China_BE\\scripts\\reports\\missing_product_images_template.csv",
+    "execute_requested": true,
+    "allow_warn_import": true,
+    "import_attempted": true,
+    "import_executed": true,
+    "import_gate_reason": "Validate đạt điều kiện cho phép import.",
+    "validate_status": "WARN",
+    "validate_pass_total": 0,
+    "validate_warn_total": 19,
+    "validate_fail_total": 0,
+    "import_ready_total": 0,
+    "import_updated_total": 0,
+    "import_skipped_total": 19,
+    "audit_health_status": "WARN",
+    "audit_products_missing_primary_total": 19,
+    "audit_products_without_any_image_total": 19,
+    "audit_db_refs_without_media_asset_total": 0,
+    "audit_db_refs_missing_on_cloudinary_total": 0
+  },
+  "validate": {
+    "summary": {
+      "csv_input": "E:\\uiChina_Web\\China_BE\\scripts\\reports\\missing_product_images_template.csv",
+      "overall_status": "WARN",
+      "header_status": "PASS",
+      "rows_total": 19,
+      "pass_total": 0,
+      "warn_total": 19,
+      "fail_total": 0,
+      "missing_required_columns": [],
+      "header_issues": []
+    },
+    "results": [
+      {
+        "csv_line_number": 2,
+        "product_id": 662,
+        "sku": "OS.01.3D",
+        "slug": "da-mem-os-01-3d",
+        "name": "Travertine 3D",
+        "status": "WARN",
+        "error_count": 0,
+        "warning_count": 1,
+        "errors": [],
+        "warnings": [
+          "Dòng CSV này chưa được điền dữ liệu ảnh mới."
+        ],
+        "current_image_url_db": "",
+        "gallery_count_db": 0,
+        "suggested_primary_image_url": "",
+        "import_gallery_count": 0
+      },
+      {
+        "csv_line_number": 3,
+        "product_id": 663,
+        "sku": "OS.02",
+        "slug": "da-mem-os-02",
+        "name": "Vân vải",
+        "status": "WARN",
+        "error_count": 0,
+        "warning_count": 1,
+        "errors": [],
+        "warnings": [
+          "Dòng CSV này chưa được điền dữ liệu ảnh mới."
+        ],
+        "current_image_url_db": "",
+        "gallery_count_db": 0,
+        "suggested_primary_image_url": "",
+        "import_gallery_count": 0
+      },
+      {
+        "csv_line_number": 4,
+        "product_id": 664,
+        "sku": "OS.03",
+        "slug": "da-mem-os-03",
+        "name": "Đá phiến sét",
+        "status": "WARN",
+        "error_count": 0,
+        "warning_count": 1,
+        "errors": [],
+        "warnings": [
+          "Dòng CSV này chưa được điền dữ liệu ảnh mới."
+        ],
+        "current_image_url_db": "",
+        "gallery_count_db": 0,
+        "suggested_primary_image_url": "",
+        "import_gallery_count": 0
+      },
+      {
+        "csv_line_number": 5,
+        "product_id": 665,
+        "sku": "OS.03.3D",
+        "slug": "da-mem-os-03-3d",
+        "name": "Đá phiến 3D",
+        "status": "WARN",
+        "error_count": 0,
+        "warning_count": 1,
+        "errors": [],
+        "warnings": [
+          "Dòng CSV này chưa được điền dữ liệu ảnh mới."
+        ],
+        "current_image_url_db": "",
+        "gallery_count_db": 0,
+        "suggested_primary_image_url": "",
+        "import_gallery_count": 0
+      },
+      {
+        "csv_line_number": 6,
+        "product_id": 666,
+        "sku": "OS.04",
+        "slug": "da-mem-os-04",
+        "name": "Vân đan sợi",
+        "status": "WARN",
+        "error_count": 0,
+        "warning_count": 1,
+        "errors": [],
+        "warnings": [
+          "Dòng CSV này chưa được điền dữ liệu ảnh mới."
+        ],
+        "current_image_url_db": "",
+        "gallery_count_db": 0,
+        "suggested_primary_image_url": "",
+        "import_gallery_count": 0
+      },
+      {
+        "csv_line_number": 7,
+        "product_id": 667,
+        "sku": "OS.05",
+        "slug": "da-mem-os-05",
+        "name": "Đá tinh nguyệt",
+        "status": "WARN",
+        "error_count": 0,
+        "warning_count": 1,
+        "errors": [],
+        "warnings": [
+          "Dòng CSV này chưa được điền dữ liệu ảnh mới."
+        ],
+        "current_image_url_db": "",
+        "gallery_count_db": 0,
+        "suggested_primary_image_url": "",
+        "import_gallery_count": 0
+      },
+      {
+        "csv_line_number": 8,
+        "product_id": 668,
+        "sku": "OS.06",
+        "slug": "da-mem-os-06",
+        "name": "Đá hoa cương",
+        "status": "WARN",
+        "error_count": 0,
+        "warning_count": 1,
+        "errors": [],
+        "warnings": [
+          "Dòng CSV này chưa được điền dữ liệu ảnh mới."
+        ],
+        "current_image_url_db": "",
+        "gallery_count_db": 0,
+        "suggested_primary_image_url": "",
+        "import_gallery_count": 0
+      },
+      {
+        "csv_line_number": 9,
+        "product_id": 669,
+        "sku": "OS.06.3D",
+        "slug": "da-mem-os-06-3d",
+        "name": "Đá hoa cương 3D",
+        "status": "WARN",
+        "error_count": 0,
+        "warning_count": 1,
+        "errors": [],
+        "warnings": [
+          "Dòng CSV này chưa được điền dữ liệu ảnh mới."
+        ],
+        "current_image_url_db": "",
+        "gallery_count_db": 0,
+        "suggested_primary_image_url": "",
+        "import_gallery_count": 0
+      },
+      {
+        "csv_line_number": 10,
+        "product_id": 670,
+        "sku": "OS.07",
+        "slug": "da-mem-os-07",
+        "name": "Đá xẻ rãnh",
+        "status": "WARN",
+        "error_count": 0,
+        "warning_count": 1,
+        "errors": [],
+        "warnings": [
+          "Dòng CSV này chưa được điền dữ liệu ảnh mới."
+        ],
+        "current_image_url_db": "",
+        "gallery_count_db": 0,
+        "suggested_primary_image_url": "",
+        "import_gallery_count": 0
+      },
+      {
+        "csv_line_number": 11,
+        "product_id": 671,
+        "sku": "OS.08",
+        "slug": "da-mem-os-08",
+        "name": "Đất nện",
+        "status": "WARN",
+        "error_count": 0,
+        "warning_count": 1,
+        "errors": [],
+        "warnings": [
+          "Dòng CSV này chưa được điền dữ liệu ảnh mới."
+        ],
+        "current_image_url_db": "",
+        "gallery_count_db": 0,
+        "suggested_primary_image_url": "",
+        "import_gallery_count": 0
+      },
+      {
+        "csv_line_number": 12,
+        "product_id": 672,
+        "sku": "OS.09",
+        "slug": "da-mem-os-09",
+        "name": "Đá dacit",
+        "status": "WARN",
+        "error_count": 0,
+        "warning_count": 1,
+        "errors": [],
+        "warnings": [
+          "Dòng CSV này chưa được điền dữ liệu ảnh mới."
+        ],
+        "current_image_url_db": "",
+        "gallery_count_db": 0,
+        "suggested_primary_image_url": "",
+        "import_gallery_count": 0
+      },
+      {
+        "csv_line_number": 13,
+        "product_id": 673,
+        "sku": "OS.10",
+        "slug": "da-mem-os-10",
+        "name": "Đan tre",
+        "status": "WARN",
+        "error_count": 0,
+        "warning_count": 1,
+        "errors": [],
+        "warnings": [
+          "Dòng CSV này chưa được điền dữ liệu ảnh mới."
+        ],
+        "current_image_url_db": "",
+        "gallery_count_db": 0,
+        "suggested_primary_image_url": "",
+        "import_gallery_count": 0
+      },
+      {
+        "csv_line_number": 14,
+        "product_id": 674,
+        "sku": "OS.11",
+        "slug": "da-mem-os-11",
+        "name": "Đá nước chảy",
+        "status": "WARN",
+        "error_count": 0,
+        "warning_count": 1,
+        "errors": [],
+        "warnings": [
+          "Dòng CSV này chưa được điền dữ liệu ảnh mới."
+        ],
+        "current_image_url_db": "",
+        "gallery_count_db": 0,
+        "suggested_primary_image_url": "",
+        "import_gallery_count": 0
+      },
+      {
+        "csv_line_number": 15,
+        "product_id": 675,
+        "sku": "OS.12",
+        "slug": "da-mem-os-12",
+        "name": "Đá vân sóng",
+        "status": "WARN",
+        "error_count": 0,
+        "warning_count": 1,
+        "errors": [],
+        "warnings": [
+          "Dòng CSV này chưa được điền dữ liệu ảnh mới."
+        ],
+        "current_image_url_db": "",
+        "gallery_count_db": 0,
+        "suggested_primary_image_url": "",
+        "import_gallery_count": 0
+      },
+      {
+        "csv_line_number": 16,
+        "product_id": 676,
+        "sku": "OS.13",
+        "slug": "da-mem-os-13",
+        "name": "Đá chẻ",
+        "status": "WARN",
+        "error_count": 0,
+        "warning_count": 1,
+        "errors": [],
+        "warnings": [
+          "Dòng CSV này chưa được điền dữ liệu ảnh mới."
+        ],
+        "current_image_url_db": "",
+        "gallery_count_db": 0,
+        "suggested_primary_image_url": "",
+        "import_gallery_count": 0
+      },
+      {
+        "csv_line_number": 17,
+        "product_id": 677,
+        "sku": "OS.14",
+        "slug": "da-mem-os-14",
+        "name": "Đá vân sọc",
+        "status": "WARN",
+        "error_count": 0,
+        "warning_count": 1,
+        "errors": [],
+        "warnings": [
+          "Dòng CSV này chưa được điền dữ liệu ảnh mới."
+        ],
+        "current_image_url_db": "",
+        "gallery_count_db": 0,
+        "suggested_primary_image_url": "",
+        "import_gallery_count": 0
+      },
+      {
+        "csv_line_number": 18,
+        "product_id": 678,
+        "sku": "OS.15",
+        "slug": "da-mem-os-15",
+        "name": "Đá vôi",
+        "status": "WARN",
+        "error_count": 0,
+        "warning_count": 1,
+        "errors": [],
+        "warnings": [
+          "Dòng CSV này chưa được điền dữ liệu ảnh mới."
+        ],
+        "current_image_url_db": "",
+        "gallery_count_db": 0,
+        "suggested_primary_image_url": "",
+        "import_gallery_count": 0
+      },
+      {
+        "csv_line_number": 19,
+        "product_id": 679,
+        "sku": "OS.16",
+        "slug": "da-mem-os-16",
+        "name": "Gạch thẻ",
+        "status": "WARN",
+        "error_count": 0,
+        "warning_count": 1,
+        "errors": [],
+        "warnings": [
+          "Dòng CSV này chưa được điền dữ liệu ảnh mới."
+        ],
+        "current_image_url_db": "",
+        "gallery_count_db": 0,
+        "suggested_primary_image_url": "",
+        "import_gallery_count": 0
+      },
+      {
+        "csv_line_number": 20,
+        "product_id": 680,
+        "sku": "OS.17",
+        "slug": "da-mem-os-17",
+        "name": "Gạch thẻ cổ điển",
+        "status": "WARN",
+        "error_count": 0,
+        "warning_count": 1,
+        "errors": [],
+        "warnings": [
+          "Dòng CSV này chưa được điền dữ liệu ảnh mới."
+        ],
+        "current_image_url_db": "",
+        "gallery_count_db": 0,
+        "suggested_primary_image_url": "",
+        "import_gallery_count": 0
+      }
+    ]
+  },
+  "import": {
+    "summary": {
+      "csv_input": "E:\\uiChina_Web\\China_BE\\scripts\\reports\\missing_product_images_template.csv",
+      "execute": true,
+      "rows_total": 19,
+      "ready_total": 0,
+      "updated_total": 0,
+      "skipped_total": 19
+    },
+    "results": [
+      {
+        "product_id": "662",
+        "sku": "OS.01.3D",
+        "slug": "da-mem-os-01-3d",
+        "name": "Travertine 3D",
+        "status": "skipped",
+        "reason": "Dòng CSV chưa có dữ liệu ảnh để import.",
+        "current_image_url_before": "",
+        "image_url_after": "",
+        "gallery_count_before": 0,
+        "gallery_count_after": 0,
+        "import_gallery_count": 0
+      },
+      {
+        "product_id": "663",
+        "sku": "OS.02",
+        "slug": "da-mem-os-02",
+        "name": "Vân vải",
+        "status": "skipped",
+        "reason": "Dòng CSV chưa có dữ liệu ảnh để import.",
+        "current_image_url_before": "",
+        "image_url_after": "",
+        "gallery_count_before": 0,
+        "gallery_count_after": 0,
+        "import_gallery_count": 0
+      },
+      {
+        "product_id": "664",
+        "sku": "OS.03",
+        "slug": "da-mem-os-03",
+        "name": "Đá phiến sét",
+        "status": "skipped",
+        "reason": "Dòng CSV chưa có dữ liệu ảnh để import.",
+        "current_image_url_before": "",
+        "image_url_after": "",
+        "gallery_count_before": 0,
+        "gallery_count_after": 0,
+        "import_gallery_count": 0
+      },
+      {
+        "product_id": "665",
+        "sku": "OS.03.3D",
+        "slug": "da-mem-os-03-3d",
+        "name": "Đá phiến 3D",
+        "status": "skipped",
+        "reason": "Dòng CSV chưa có dữ liệu ảnh để import.",
+        "current_image_url_before": "",
+        "image_url_after": "",
+        "gallery_count_before": 0,
+        "gallery_count_after": 0,
+        "import_gallery_count": 0
+      },
+      {
+        "product_id": "666",
+        "sku": "OS.04",
+        "slug": "da-mem-os-04",
+        "name": "Vân đan sợi",
+        "status": "skipped",
+        "reason": "Dòng CSV chưa có dữ liệu ảnh để import.",
+        "current_image_url_before": "",
+        "image_url_after": "",
+        "gallery_count_before": 0,
+        "gallery_count_after": 0,
+        "import_gallery_count": 0
+      },
+      {
+        "product_id": "667",
+        "sku": "OS.05",
+        "slug": "da-mem-os-05",
+        "name": "Đá tinh nguyệt",
+        "status": "skipped",
+        "reason": "Dòng CSV chưa có dữ liệu ảnh để import.",
+        "current_image_url_before": "",
+        "image_url_after": "",
+        "gallery_count_before": 0,
+        "gallery_count_after": 0,
+        "import_gallery_count": 0
+      },
+      {
+        "product_id": "668",
+        "sku": "OS.06",
+        "slug": "da-mem-os-06",
+        "name": "Đá hoa cương",
+        "status": "skipped",
+        "reason": "Dòng CSV chưa có dữ liệu ảnh để import.",
+        "current_image_url_before": "",
+        "image_url_after": "",
+        "gallery_count_before": 0,
+        "gallery_count_after": 0,
+        "import_gallery_count": 0
+      },
+      {
+        "product_id": "669",
+        "sku": "OS.06.3D",
+        "slug": "da-mem-os-06-3d",
+        "name": "Đá hoa cương 3D",
+        "status": "skipped",
+        "reason": "Dòng CSV chưa có dữ liệu ảnh để import.",
+        "current_image_url_before": "",
+        "image_url_after": "",
+        "gallery_count_before": 0,
+        "gallery_count_after": 0,
+        "import_gallery_count": 0
+      },
+      {
+        "product_id": "670",
+        "sku": "OS.07",
+        "slug": "da-mem-os-07",
+        "name": "Đá xẻ rãnh",
+        "status": "skipped",
+        "reason": "Dòng CSV chưa có dữ liệu ảnh để import.",
+        "current_image_url_before": "",
+        "image_url_after": "",
+        "gallery_count_before": 0,
+        "gallery_count_after": 0,
+        "import_gallery_count": 0
+      },
+      {
+        "product_id": "671",
+        "sku": "OS.08",
+        "slug": "da-mem-os-08",
+        "name": "Đất nện",
+        "status": "skipped",
+        "reason": "Dòng CSV chưa có dữ liệu ảnh để import.",
+        "current_image_url_before": "",
+        "image_url_after": "",
+        "gallery_count_before": 0,
+        "gallery_count_after": 0,
+        "import_gallery_count": 0
+      },
+      {
+        "product_id": "672",
+        "sku": "OS.09",
+        "slug": "da-mem-os-09",
+        "name": "Đá dacit",
+        "status": "skipped",
+        "reason": "Dòng CSV chưa có dữ liệu ảnh để import.",
+        "current_image_url_before": "",
+        "image_url_after": "",
+        "gallery_count_before": 0,
+        "gallery_count_after": 0,
+        "import_gallery_count": 0
+      },
+      {
+        "product_id": "673",
+        "sku": "OS.10",
+        "slug": "da-mem-os-10",
+        "name": "Đan tre",
+        "status": "skipped",
+        "reason": "Dòng CSV chưa có dữ liệu ảnh để import.",
+        "current_image_url_before": "",
+        "image_url_after": "",
+        "gallery_count_before": 0,
+        "gallery_count_after": 0,
+        "import_gallery_count": 0
+      },
+      {
+        "product_id": "674",
+        "sku": "OS.11",
+        "slug": "da-mem-os-11",
+        "name": "Đá nước chảy",
+        "status": "skipped",
+        "reason": "Dòng CSV chưa có dữ liệu ảnh để import.",
+        "current_image_url_before": "",
+        "image_url_after": "",
+        "gallery_count_before": 0,
+        "gallery_count_after": 0,
+        "import_gallery_count": 0
+      },
+      {
+        "product_id": "675",
+        "sku": "OS.12",
+        "slug": "da-mem-os-12",
+        "name": "Đá vân sóng",
+        "status": "skipped",
+        "reason": "Dòng CSV chưa có dữ liệu ảnh để import.",
+        "current_image_url_before": "",
+        "image_url_after": "",
+        "gallery_count_before": 0,
+        "gallery_count_after": 0,
+        "import_gallery_count": 0
+      },
+      {
+        "product_id": "676",
+        "sku": "OS.13",
+        "slug": "da-mem-os-13",
+        "name": "Đá chẻ",
+        "status": "skipped",
+        "reason": "Dòng CSV chưa có dữ liệu ảnh để import.",
+        "current_image_url_before": "",
+        "image_url_after": "",
+        "gallery_count_before": 0,
+        "gallery_count_after": 0,
+        "import_gallery_count": 0
+      },
+      {
+        "product_id": "677",
+        "sku": "OS.14",
+        "slug": "da-mem-os-14",
+        "name": "Đá vân sọc",
+        "status": "skipped",
+        "reason": "Dòng CSV chưa có dữ liệu ảnh để import.",
+        "current_image_url_before": "",
+        "image_url_after": "",
+        "gallery_count_before": 0,
+        "gallery_count_after": 0,
+        "import_gallery_count": 0
+      },
+      {
+        "product_id": "678",
+        "sku": "OS.15",
+        "slug": "da-mem-os-15",
+        "name": "Đá vôi",
+        "status": "skipped",
+        "reason": "Dòng CSV chưa có dữ liệu ảnh để import.",
+        "current_image_url_before": "",
+        "image_url_after": "",
+        "gallery_count_before": 0,
+        "gallery_count_after": 0,
+        "import_gallery_count": 0
+      },
+      {
+        "product_id": "679",
+        "sku": "OS.16",
+        "slug": "da-mem-os-16",
+        "name": "Gạch thẻ",
+        "status": "skipped",
+        "reason": "Dòng CSV chưa có dữ liệu ảnh để import.",
+        "current_image_url_before": "",
+        "image_url_after": "",
+        "gallery_count_before": 0,
+        "gallery_count_after": 0,
+        "import_gallery_count": 0
+      },
+      {
+        "product_id": "680",
+        "sku": "OS.17",
+        "slug": "da-mem-os-17",
+        "name": "Gạch thẻ cổ điển",
+        "status": "skipped",
+        "reason": "Dòng CSV chưa có dữ liệu ảnh để import.",
+        "current_image_url_before": "",
+        "image_url_after": "",
+        "gallery_count_before": 0,
+        "gallery_count_after": 0,
+        "import_gallery_count": 0
+      }
+    ]
+  },
+  "audit": {
+    "health_status": "WARN",
+    "health_reasons": [
+      "Có 19 sản phẩm chưa có ảnh chính",
+      "Có 19 sản phẩm chưa có bất kỳ ảnh nào"
+    ],
+    "summary": {
+      "database_url": "postgresql+psycopg://neondb_owner:npg_3GFQAtIhkd0R@ep-wispy-hill-ao5nk7uq-pooler.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require",
+      "media_storage": "cloudinary",
+      "cloudinary_folder": "China_web",
+      "cloudinary_prefix_checked": "China_web",
+      "media_assets_total": 218,
+      "media_assets_cloudinary_total": 215,
+      "product_url_refs_total": 22,
+      "cloudinary_resources_total": 215,
+      "cloudinary_missing_in_media_assets_total": 0,
+      "media_assets_missing_on_cloudinary_total": 0,
+      "db_refs_without_media_asset_total": 0,
+      "db_refs_missing_on_cloudinary_total": 0,
+      "duplicate_media_asset_public_ids_total": 0
+    },
+    "product_summary": {
+      "products_missing_primary_total": 19,
+      "products_invalid_primary_url_total": 0,
+      "products_primary_missing_media_asset_total": 0,
+      "products_primary_missing_on_cloudinary_total": 0,
+      "products_gallery_contains_primary_total": 0,
+      "products_gallery_duplicate_urls_total": 0,
+      "products_invalid_gallery_urls_total": 0,
+      "products_gallery_missing_media_asset_total": 0,
+      "products_gallery_missing_on_cloudinary_total": 0,
+      "products_without_any_image_total": 19
+    },
+    "product_checks": {
+      "products_missing_primary": [
+        {
+          "product_id": 662,
+          "slug": "da-mem-os-01-3d",
+          "name": "Travertine 3D",
+          "sku": "OS.01.3D"
+        },
+        {
+          "product_id": 663,
+          "slug": "da-mem-os-02",
+          "name": "Vân vải",
+          "sku": "OS.02"
+        },
+        {
+          "product_id": 664,
+          "slug": "da-mem-os-03",
+          "name": "Đá phiến sét",
+          "sku": "OS.03"
+        },
+        {
+          "product_id": 665,
+          "slug": "da-mem-os-03-3d",
+          "name": "Đá phiến 3D",
+          "sku": "OS.03.3D"
+        },
+        {
+          "product_id": 666,
+          "slug": "da-mem-os-04",
+          "name": "Vân đan sợi",
+          "sku": "OS.04"
+        },
+        {
+          "product_id": 667,
+          "slug": "da-mem-os-05",
+          "name": "Đá tinh nguyệt",
+          "sku": "OS.05"
+        },
+        {
+          "product_id": 668,
+          "slug": "da-mem-os-06",
+          "name": "Đá hoa cương",
+          "sku": "OS.06"
+        },
+        {
+          "product_id": 669,
+          "slug": "da-mem-os-06-3d",
+          "name": "Đá hoa cương 3D",
+          "sku": "OS.06.3D"
+        },
+        {
+          "product_id": 670,
+          "slug": "da-mem-os-07",
+          "name": "Đá xẻ rãnh",
+          "sku": "OS.07"
+        },
+        {
+          "product_id": 671,
+          "slug": "da-mem-os-08",
+          "name": "Đất nện",
+          "sku": "OS.08"
+        },
+        {
+          "product_id": 672,
+          "slug": "da-mem-os-09",
+          "name": "Đá dacit",
+          "sku": "OS.09"
+        },
+        {
+          "product_id": 673,
+          "slug": "da-mem-os-10",
+          "name": "Đan tre",
+          "sku": "OS.10"
+        },
+        {
+          "product_id": 674,
+          "slug": "da-mem-os-11",
+          "name": "Đá nước chảy",
+          "sku": "OS.11"
+        },
+        {
+          "product_id": 675,
+          "slug": "da-mem-os-12",
+          "name": "Đá vân sóng",
+          "sku": "OS.12"
+        },
+        {
+          "product_id": 676,
+          "slug": "da-mem-os-13",
+          "name": "Đá chẻ",
+          "sku": "OS.13"
+        },
+        {
+          "product_id": 677,
+          "slug": "da-mem-os-14",
+          "name": "Đá vân sọc",
+          "sku": "OS.14"
+        },
+        {
+          "product_id": 678,
+          "slug": "da-mem-os-15",
+          "name": "Đá vôi",
+          "sku": "OS.15"
+        },
+        {
+          "product_id": 679,
+          "slug": "da-mem-os-16",
+          "name": "Gạch thẻ",
+          "sku": "OS.16"
+        },
+        {
+          "product_id": 680,
+          "slug": "da-mem-os-17",
+          "name": "Gạch thẻ cổ điển",
+          "sku": "OS.17"
+        }
+      ],
+      "products_invalid_primary_url": [],
+      "products_primary_missing_media_asset": [],
+      "products_primary_missing_on_cloudinary": [],
+      "products_gallery_contains_primary": [],
+      "products_gallery_duplicate_urls": [],
+      "products_invalid_gallery_urls": [],
+      "products_gallery_missing_media_asset": [],
+      "products_gallery_missing_on_cloudinary": [],
+      "products_without_any_image": [
+        {
+          "product_id": 662,
+          "slug": "da-mem-os-01-3d",
+          "name": "Travertine 3D",
+          "sku": "OS.01.3D"
+        },
+        {
+          "product_id": 663,
+          "slug": "da-mem-os-02",
+          "name": "Vân vải",
+          "sku": "OS.02"
+        },
+        {
+          "product_id": 664,
+          "slug": "da-mem-os-03",
+          "name": "Đá phiến sét",
+          "sku": "OS.03"
+        },
+        {
+          "product_id": 665,
+          "slug": "da-mem-os-03-3d",
+          "name": "Đá phiến 3D",
+          "sku": "OS.03.3D"
+        },
+        {
+          "product_id": 666,
+          "slug": "da-mem-os-04",
+          "name": "Vân đan sợi",
+          "sku": "OS.04"
+        },
+        {
+          "product_id": 667,
+          "slug": "da-mem-os-05",
+          "name": "Đá tinh nguyệt",
+          "sku": "OS.05"
+        },
+        {
+          "product_id": 668,
+          "slug": "da-mem-os-06",
+          "name": "Đá hoa cương",
+          "sku": "OS.06"
+        },
+        {
+          "product_id": 669,
+          "slug": "da-mem-os-06-3d",
+          "name": "Đá hoa cương 3D",
+          "sku": "OS.06.3D"
+        },
+        {
+          "product_id": 670,
+          "slug": "da-mem-os-07",
+          "name": "Đá xẻ rãnh",
+          "sku": "OS.07"
+        },
+        {
+          "product_id": 671,
+          "slug": "da-mem-os-08",
+          "name": "Đất nện",
+          "sku": "OS.08"
+        },
+        {
+          "product_id": 672,
+          "slug": "da-mem-os-09",
+          "name": "Đá dacit",
+          "sku": "OS.09"
+        },
+        {
+          "product_id": 673,
+          "slug": "da-mem-os-10",
+          "name": "Đan tre",
+          "sku": "OS.10"
+        },
+        {
+          "product_id": 674,
+          "slug": "da-mem-os-11",
+          "name": "Đá nước chảy",
+          "sku": "OS.11"
+        },
+        {
+          "product_id": 675,
+          "slug": "da-mem-os-12",
+          "name": "Đá vân sóng",
+          "sku": "OS.12"
+        },
+        {
+          "product_id": 676,
+          "slug": "da-mem-os-13",
+          "name": "Đá chẻ",
+          "sku": "OS.13"
+        },
+        {
+          "product_id": 677,
+          "slug": "da-mem-os-14",
+          "name": "Đá vân sọc",
+          "sku": "OS.14"
+        },
+        {
+          "product_id": 678,
+          "slug": "da-mem-os-15",
+          "name": "Đá vôi",
+          "sku": "OS.15"
+        },
+        {
+          "product_id": 679,
+          "slug": "da-mem-os-16",
+          "name": "Gạch thẻ",
+          "sku": "OS.16"
+        },
+        {
+          "product_id": 680,
+          "slug": "da-mem-os-17",
+          "name": "Gạch thẻ cổ điển",
+          "sku": "OS.17"
+        }
+      ]
+    },
+    "alignment": {
+      "summary": {
+        "database_url": "postgresql+psycopg://neondb_owner:npg_3GFQAtIhkd0R@ep-wispy-hill-ao5nk7uq-pooler.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require",
+        "media_storage": "cloudinary",
+        "cloudinary_folder": "China_web",
+        "cloudinary_prefix_checked": "China_web",
+        "media_assets_total": 218,
+        "media_assets_cloudinary_total": 215,
+        "product_url_refs_total": 22,
+        "cloudinary_resources_total": 215,
+        "cloudinary_missing_in_media_assets_total": 0,
+        "media_assets_missing_on_cloudinary_total": 0,
+        "db_refs_without_media_asset_total": 0,
+        "db_refs_missing_on_cloudinary_total": 0,
+        "duplicate_media_asset_public_ids_total": 0
+      },
+      "cloudinary_missing_in_media_assets": [],
+      "media_assets_missing_on_cloudinary": [],
+      "db_refs_without_media_asset": [],
+      "db_refs_missing_on_cloudinary": [],
+      "duplicate_media_asset_public_ids": []
+    }
+  }
+}

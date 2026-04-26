@@ -2,18 +2,19 @@ from typing import Any
 
 from fastapi import HTTPException, status
 from pydantic import ValidationError
-from sqlalchemy import String, cast, func, or_, select
+from sqlalchemy import asc, delete, desc, func, inspect, or_, select, String, cast
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, selectinload, joinedload
 
 from app.core.config import settings
-from app.models.content import Banner, Page, PageSection
+from app.models.content import Banner, ContentBlock, ContentBlockItem, Page, PageSection
 from app.models.media import MediaAsset
 from app.models.organization import Video
 from app.models.products import Product, ProductImage
 from app.models.projects import Project, ProjectCategory, ProjectCategoryItem, ProjectProduct
 from app.services.media import delete_media_asset_record
 from app.services.catalog import ENTITY_REGISTRY, EntityRegistration
+from app.utils.contact_maps import normalize_contact_payload
 
 try:
     from app.services.wordpress_sync import delete_wordpress_post
@@ -31,6 +32,34 @@ def get_registration(entity_name: str) -> EntityRegistration:
     return registration
 
 
+def _clean_text(value: Any) -> str:
+    return str(value or "").strip().lower()
+
+
+def _about_section_from_block_key(block_key: Any) -> str:
+    mapping = {
+        "hero_summary": "hero",
+        "intro_media": "company_introduction",
+        "intro_video": "company_introduction",
+        "intro_paragraphs": "company_introduction",
+        "speech_profile": "chairman_speech",
+        "speech_body": "chairman_speech",
+        "speech_signature": "chairman_speech",
+        "org_chart_image": "organization_chart",
+        "culture_purpose": "corporate_culture",
+        "culture_mission": "corporate_culture",
+        "culture_spirit": "corporate_culture",
+        "culture_values": "corporate_culture",
+        "timeline": "development_course",
+        "leadership_care_gallery": "leadership_care",
+    }
+    return mapping.get(_clean_text(block_key), "")
+
+
+def _is_empty_text(value: Any) -> bool:
+    return not str(value or "").strip()
+
+
 def _serialize_media(record: MediaAsset | None) -> dict[str, Any] | None:
     if not record:
         return None
@@ -43,6 +72,8 @@ def _stringify_project_case_ids(entity_name: str, payload: dict[str, Any]) -> di
     fields_to_stringify: tuple[str, ...] = ()
 
     if entity_name == "project_categories":
+        fields_to_stringify = ("id", "parent_id")
+    elif entity_name == "product_categories":
         fields_to_stringify = ("id", "parent_id")
     elif entity_name == "projects":
         fields_to_stringify = ("category_id",)
@@ -85,7 +116,6 @@ def _decorate_project_case_admin_payload(
                 "corporate_culture": "/about/corporate-culture#page5",
                 "development_course": "/about/development-course#page6",
                 "leadership_care": "/about/leadership-care#page7",
-                "cooperative_partner": "/about/cooperative-partner#page8",
             }
             anchor = str(payload.get("anchor") or getattr(record, "anchor", "")).strip().lower()
             if page.slug == "about":
@@ -125,6 +155,12 @@ def _base_query_for_model(model: type):
     if model is Banner:
         return query.options(selectinload(Banner.image))
 
+    if model is ContentBlockItem:
+        return query.options(
+            selectinload(ContentBlockItem.block),
+            selectinload(ContentBlockItem.image),
+        )
+
     if model is Video:
         return query.options(selectinload(Video.thumbnail))
 
@@ -146,6 +182,16 @@ def serialize(db: Session, record: Any, registration: EntityRegistration) -> dic
     if isinstance(record, Banner):
         payload["image"] = _serialize_media(getattr(record, "image", None))
 
+    if isinstance(record, ContentBlockItem):
+        block = getattr(record, "block", None)
+        image = getattr(record, "image", None)
+        payload["image"] = _serialize_media(image)
+        payload["image_url"] = getattr(image, "url", None) if image else None
+        payload["block_key"] = getattr(block, "block_key", None) if block else None
+        payload["block_title"] = getattr(block, "title", None) if block else None
+        payload["block_type"] = getattr(block, "block_type", None) if block else None
+        payload["section_key"] = _about_section_from_block_key(payload.get("block_key"))
+
     if isinstance(record, Video):
         payload["thumbnail"] = _serialize_media(getattr(record, "thumbnail", None))
 
@@ -164,19 +210,28 @@ def serialize(db: Session, record: Any, registration: EntityRegistration) -> dic
 
 
 def _sync_product_images(db: Session, product: Product, gallery_urls: str | None) -> None:
-    raw_gallery_urls = str(gallery_urls or "").strip()
-    if not raw_gallery_urls:
-        # Empty gallery input should not wipe existing product images on update.
-        return
+    del db
 
-    product.images.clear()
+    raw_gallery_urls = str(gallery_urls or "")
+    primary_url = str(getattr(product, "image_url", "") or "").strip()
     urls = [
         line.strip()
         for line in raw_gallery_urls.replace("\r", "\n").split("\n")
         if line.strip()
     ]
-    for index, url in enumerate(urls):
+
+    deduplicated_urls: list[str] = []
+    seen: set[str] = set()
+    for url in urls:
+        if url == primary_url or url in seen:
+            continue
+        seen.add(url)
+        deduplicated_urls.append(url)
+
+    product.images.clear()
+    for index, url in enumerate(deduplicated_urls):
         product.images.append(ProductImage(url=url, alt=product.name, sort_order=index))
+
 
 
 def _normalize_validation_errors(exc: ValidationError) -> list[dict[str, Any]]:
@@ -277,6 +332,14 @@ def _apply_admin_pages_filter(entity_name: str, model: type, query, count_query)
         about_sections_condition = model.page_id.in_(about_page_ids)
         return query.where(about_sections_condition), count_query.where(about_sections_condition)
 
+    if entity_name == "content_blocks" and model is ContentBlock:
+        about_page_ids = select(Page.id).where(func.lower(func.coalesce(Page.slug, "")) == "about")
+        about_blocks_condition = (
+            (func.lower(func.coalesce(model.entity_type, "")) == "page")
+            & model.entity_id.in_(about_page_ids)
+        )
+        return query.where(about_blocks_condition), count_query.where(about_blocks_condition)
+
     return query, count_query
 
 
@@ -290,11 +353,21 @@ def list_entity_records(
     status_value: str | None,
     is_active: bool | None,
     search: str | None,
+    section_key: str | None = None,
+    block_key: str | None = None,
+    completeness: str | None = None,
+    media_state: str | None = None,
 ) -> dict[str, Any]:
     registration = get_registration(entity_name)
     model = registration.model
     query = _base_query_for_model(model)
     count_query = select(func.count()).select_from(model)
+
+    if entity_name == "content_block_items":
+        query = query.join(ContentBlock, ContentBlock.id == ContentBlockItem.block_id)
+        count_query = count_query.select_from(ContentBlockItem).join(
+            ContentBlock, ContentBlock.id == ContentBlockItem.block_id
+        )
 
     if hasattr(model, "deleted_at"):
         deleted_at = getattr(model, "deleted_at")
@@ -309,24 +382,103 @@ def list_entity_records(
         "is_active": is_active,
     }.items():
         if value is not None and hasattr(model, candidate):
-            # Skip language filter for Banners
             if candidate == "language_id" and model is Banner:
                 continue
-                
+
             column = getattr(model, candidate)
             query = query.where(column == value)
             count_query = count_query.where(column == value)
 
     if search:
-        search_columns = [
-            getattr(model, field_name)
-            for field_name in ("title", "name", "slug", "config_key", "email")
-            if hasattr(model, field_name)
-        ]
-        if search_columns:
-            conditions = [cast(column, String).ilike(f"%{search}%") for column in search_columns]
+        if entity_name == "content_block_items":
+            search_term = f"%{search}%"
+            conditions = [
+                cast(ContentBlockItem.title, String).ilike(search_term),
+                cast(ContentBlockItem.subtitle, String).ilike(search_term),
+                cast(ContentBlockItem.content, String).ilike(search_term),
+                cast(ContentBlockItem.item_key, String).ilike(search_term),
+                cast(ContentBlockItem.link, String).ilike(search_term),
+                cast(ContentBlock.block_key, String).ilike(search_term),
+                cast(ContentBlock.title, String).ilike(search_term),
+                cast(ContentBlock.subtitle, String).ilike(search_term),
+            ]
             query = query.where(or_(*conditions))
             count_query = count_query.where(or_(*conditions))
+        else:
+            search_columns = [
+                getattr(model, field_name)
+                for field_name in ("title", "name", "slug", "config_key", "email")
+                if hasattr(model, field_name)
+            ]
+            if search_columns:
+                conditions = [cast(column, String).ilike(f"%{search}%") for column in search_columns]
+                query = query.where(or_(*conditions))
+                count_query = count_query.where(or_(*conditions))
+
+    if entity_name == "content_block_items":
+        normalized_block_key = _clean_text(block_key)
+        normalized_section_key = _clean_text(section_key)
+        normalized_completeness = _clean_text(completeness)
+        normalized_media_state = _clean_text(media_state)
+
+        about_page_ids = select(Page.id).where(func.lower(func.coalesce(Page.slug, "")) == "about")
+        about_items_condition = (
+            (func.lower(func.coalesce(ContentBlock.entity_type, "")) == "page")
+            & ContentBlock.entity_id.in_(about_page_ids)
+        )
+        query = query.where(about_items_condition)
+        count_query = count_query.where(about_items_condition)
+
+        if normalized_block_key:
+            block_condition = func.lower(func.coalesce(ContentBlock.block_key, "")) == normalized_block_key
+            query = query.where(block_condition)
+            count_query = count_query.where(block_condition)
+
+        if normalized_section_key:
+            section_to_blocks = {
+                "hero": ["hero_summary"],
+                "company_introduction": ["intro_media", "intro_video", "intro_paragraphs"],
+                "chairman_speech": ["speech_profile", "speech_body", "speech_signature"],
+                "organization_chart": ["org_chart_image"],
+                "corporate_culture": ["culture_purpose", "culture_mission", "culture_spirit", "culture_values"],
+                "development_course": ["timeline"],
+                "leadership_care": ["leadership_care_gallery"],
+            }
+            allowed_blocks = section_to_blocks.get(normalized_section_key, [])
+            if allowed_blocks:
+                section_condition = func.lower(func.coalesce(ContentBlock.block_key, "")).in_(allowed_blocks)
+            else:
+                section_condition = func.lower(func.coalesce(ContentBlock.block_key, "")) == "__no_match__"
+            query = query.where(section_condition)
+            count_query = count_query.where(section_condition)
+
+        text_present_expr = or_(
+            func.length(func.trim(func.coalesce(ContentBlockItem.title, ""))) > 0,
+            func.length(func.trim(func.coalesce(ContentBlockItem.subtitle, ""))) > 0,
+            func.length(func.trim(func.coalesce(ContentBlockItem.content, ""))) > 0,
+        )
+        image_present_expr = ContentBlockItem.image_id.is_not(None)
+        link_present_expr = func.length(func.trim(func.coalesce(ContentBlockItem.link, ""))) > 0
+
+        if normalized_completeness == "missing_content":
+            query = query.where(~text_present_expr)
+            count_query = count_query.where(~text_present_expr)
+        elif normalized_completeness == "missing_image":
+            query = query.where(~image_present_expr)
+            count_query = count_query.where(~image_present_expr)
+        elif normalized_completeness == "missing_link":
+            query = query.where(~link_present_expr)
+            count_query = count_query.where(~link_present_expr)
+        elif normalized_completeness == "complete":
+            query = query.where(text_present_expr, image_present_expr)
+            count_query = count_query.where(text_present_expr, image_present_expr)
+
+        if normalized_media_state == "with_media":
+            query = query.where(image_present_expr)
+            count_query = count_query.where(image_present_expr)
+        elif normalized_media_state == "without_media":
+            query = query.where(~image_present_expr)
+            count_query = count_query.where(~image_present_expr)
 
     if hasattr(model, "sort_order"):
         query = query.order_by(getattr(model, "sort_order"), getattr(model, "id"))
@@ -343,8 +495,9 @@ def list_entity_records(
 
 def create_entity_record(db: Session, entity_name: str, payload: dict[str, Any]) -> dict[str, Any]:
     registration = get_registration(entity_name)
+    normalized_payload = normalize_contact_payload(payload) if entity_name == "contacts" else payload
     try:
-        data = registration.create_schema.model_validate(payload).model_dump(exclude_none=True)
+        data = registration.create_schema.model_validate(normalized_payload).model_dump(exclude_none=True)
     except ValidationError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -358,7 +511,7 @@ def create_entity_record(db: Session, entity_name: str, payload: dict[str, Any])
     db.add(record)
     try:
         db.commit()
-        if entity_name == "products" and str(product_gallery_urls or "").strip():
+        if entity_name == "products" and product_gallery_urls is not None:
             _sync_product_images(db, record, product_gallery_urls)
             db.add(record)
             db.commit()
@@ -383,8 +536,9 @@ def update_entity_record(db: Session, entity_name: str, record_id: int, payload:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Record not found.")
 
     # Keep explicit null values from admin forms so users can clear optional fields.
+    normalized_payload = normalize_contact_payload(payload) if entity_name == "contacts" else payload
     try:
-        data = registration.update_schema.model_validate(payload).model_dump(exclude_unset=True)
+        data = registration.update_schema.model_validate(normalized_payload).model_dump(exclude_unset=True)
     except ValidationError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -397,7 +551,7 @@ def update_entity_record(db: Session, entity_name: str, record_id: int, payload:
     for field_name, value in data.items():
         setattr(record, field_name, value)
 
-    if entity_name == "products" and str(product_gallery_urls or "").strip():
+    if entity_name == "products" and product_gallery_urls is not None:
         _sync_product_images(db, record, product_gallery_urls)
 
     db.add(record)
@@ -420,7 +574,7 @@ def delete_entity_record(db: Session, entity_name: str, record_id: int) -> None:
         return
 
     if entity_name == "posts" and settings.wp_bidirectional_delete_enabled:
-        post_record: Post = record
+        post_record = record
         is_wp_managed = (
             str(post_record.source_system or "").strip().lower() == "wordpress"
             or post_record.wp_post_id is not None

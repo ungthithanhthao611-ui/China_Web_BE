@@ -11,7 +11,7 @@ from app.models.navigation import Menu, MenuItem
 from app.models.organization import Branch, Contact, Video
 from app.models.products import ContactInquiry, Product, ProductCategory, ProductImage
 from app.models.projects import Project, ProjectCategory, ProjectCategoryItem, ProjectProduct
-from app.schemas.products import InquiryCreate, ProductCategoryRead, ProductListItemRead, ProductRead
+from app.schemas.products import InquiryCreate, ProductCategoryNodeRead, ProductListItemRead, ProductRead
 from app.schemas.projects import ProjectCasePageRead
 from app.models.taxonomy import Language, SiteSetting
 from app.services.honors import list_public_honors
@@ -119,9 +119,14 @@ def _media_group_urls(
 ) -> list[str]:
     if not media_groups:
         return []
+
+    items = media_groups.get(group_name, [])
+    if not items and group_name in {"left_gallery", "right_gallery"}:
+        items = media_groups.get("main", [])
+
     return [
         item.get("media", {}).get("url")
-        for item in media_groups.get(group_name, [])
+        for item in items
         if item.get("media", {}).get("url")
     ]
 
@@ -595,29 +600,64 @@ def list_videos(db: Session, language_code: str) -> list[dict[str, Any]]:
 
 # ─── Products ────────────────────────────────────────────────────────────────
 
+def _build_product_category_tree(
+    categories: list[ProductCategory],
+    direct_counts: dict[int, int],
+) -> list[dict[str, Any]]:
+    ordered_categories = sorted(categories, key=lambda row: (row.sort_order, row.id))
+    valid_category_ids = {row.id for row in ordered_categories}
+    children_map: dict[int | None, list[ProductCategory]] = {}
+
+    for category in ordered_categories:
+        parent_id = category.parent_id if category.parent_id in valid_category_ids else None
+        children_map.setdefault(parent_id, []).append(category)
+
+    def serialize_node(category: ProductCategory) -> dict[str, Any]:
+        child_nodes = [serialize_node(child) for child in children_map.get(category.id, [])]
+        direct_product_count = direct_counts.get(category.id, 0)
+        product_count = direct_product_count + sum(child["product_count"] for child in child_nodes)
+        payload = ProductCategoryNodeRead.model_validate(category).model_dump(mode="json")
+        payload["direct_product_count"] = direct_product_count
+        payload["product_count"] = product_count
+        payload["children"] = child_nodes
+        return payload
+
+    return [serialize_node(category) for category in children_map.get(None, [])]
+
+
 def list_product_categories(db: Session) -> dict[str, Any]:
-    """Trả về tất cả danh mục sản phẩm active kèm product_count."""
+    """Trả về cây danh mục sản phẩm active kèm số lượng sản phẩm trực tiếp và cộng dồn."""
     categories = db.scalars(
         select(ProductCategory)
-        .where(ProductCategory.is_active.is_(True))
+        .where(
+            ProductCategory.is_active.is_(True),
+            ProductCategory.slug != "tat-ca",
+        )
         .order_by(ProductCategory.sort_order, ProductCategory.id)
     ).all()
 
-    # Đếm số sản phẩm active trong mỗi danh mục
     counts_rows = db.execute(
         select(Product.category_id, func.count(Product.id).label("cnt"))
         .where(Product.is_active.is_(True), Product.category_id.isnot(None))
         .group_by(Product.category_id)
     ).all()
-    counts: dict[int, int] = {row.category_id: row.cnt for row in counts_rows}
+    direct_counts: dict[int, int] = {row.category_id: row.cnt for row in counts_rows}
 
-    payload = []
-    for cat in categories:
-        data = ProductCategoryRead.model_validate(cat).model_dump(mode="json")
-        data["product_count"] = counts.get(cat.id, 0)
-        payload.append(data)
+    tree_items = _build_product_category_tree(categories, direct_counts)
+    flat_items: list[dict[str, Any]] = []
 
-    return {"items": payload, "pagination": {"total": len(payload)}}
+    def flatten(nodes: list[dict[str, Any]]) -> None:
+        for node in nodes:
+            flat_items.append(node)
+            flatten(node.get("children", []))
+
+    flatten(tree_items)
+
+    return {
+        "items": tree_items,
+        "flat_items": flat_items,
+        "pagination": {"total": len(flat_items)},
+    }
 
 
 def list_products(
@@ -631,8 +671,33 @@ def list_products(
         .options(selectinload(Product.images), selectinload(Product.category))
         .where(Product.is_active.is_(True))
     )
-    if category_slug:
-        base_query = base_query.join(ProductCategory).where(ProductCategory.slug == category_slug)
+    if category_slug and category_slug != "tat-ca":
+        selected_category = db.scalar(
+            select(ProductCategory).where(ProductCategory.slug == category_slug)
+        )
+        if not selected_category:
+            return {"items": [], "pagination": {"skip": skip, "limit": limit, "total": 0}}
+
+        categories = db.scalars(
+            select(ProductCategory).where(
+                ProductCategory.is_active.is_(True),
+                ProductCategory.slug != "tat-ca",
+            )
+        ).all()
+        children_map: dict[int | None, list[int]] = {}
+        for category in categories:
+            children_map.setdefault(category.parent_id, []).append(category.id)
+
+        category_ids = [selected_category.id]
+        stack = [selected_category.id]
+        while stack:
+            current_id = stack.pop()
+            child_ids = children_map.get(current_id, [])
+            category_ids.extend(child_ids)
+            stack.extend(child_ids)
+
+        unique_category_ids = list(dict.fromkeys(category_ids))
+        base_query = base_query.where(Product.category_id.in_(unique_category_ids))
 
     total = db.scalar(select(func.count()).select_from(base_query.subquery()))
     items = db.scalars(
@@ -641,12 +706,17 @@ def list_products(
 
     payload = []
     for product in items:
+        ordered_images = sorted(product.images, key=lambda img: (img.sort_order, img.id))
+        related_images = [
+            {"url": img.url, "alt": img.alt, "sort_order": img.sort_order}
+            for img in ordered_images
+            if str(img.url or "").strip() and str(img.url or "").strip() != str(product.image_url or "").strip()
+        ]
+
         data = ProductListItemRead.model_validate(product).model_dump(mode="json")
         data["category_name"] = product.category.name if product.category else None
-        data["images"] = [
-            {"url": img.url, "alt": img.alt, "sort_order": img.sort_order}
-            for img in product.images
-        ]
+        data["images"] = related_images
+        data["gallery_urls"] = "\n".join(image["url"] for image in related_images)
         payload.append(data)
 
     return {"items": payload, "pagination": {"skip": skip, "limit": limit, "total": total or 0}}
@@ -661,12 +731,17 @@ def get_product_detail(db: Session, slug: str) -> dict[str, Any]:
     if not product:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found.")
 
+    ordered_images = sorted(product.images, key=lambda img: (img.sort_order, img.id))
+    related_images = [
+        {"url": img.url, "alt": img.alt, "sort_order": img.sort_order}
+        for img in ordered_images
+        if str(img.url or "").strip() and str(img.url or "").strip() != str(product.image_url or "").strip()
+    ]
+
     data = ProductRead.model_validate(product).model_dump(mode="json")
     data["category_name"] = product.category.name if product.category else None
-    data["images"] = [
-        {"url": img.url, "alt": img.alt, "sort_order": img.sort_order}
-        for img in product.images
-    ]
+    data["images"] = related_images
+    data["gallery_urls"] = "\n".join(image["url"] for image in related_images)
 
     # Related products cùng category
     related: list[dict[str, Any]] = []
@@ -683,10 +758,16 @@ def get_product_detail(db: Session, slug: str) -> dict[str, Any]:
             .limit(4)
         ).all()
         for rel in related_products:
-            rel_data = ProductListItemRead.model_validate(rel).model_dump(mode="json")
-            rel_data["images"] = [
-                {"url": img.url, "alt": img.alt} for img in rel.images
+            rel_ordered_images = sorted(rel.images, key=lambda img: (img.sort_order, img.id))
+            rel_related_images = [
+                {"url": img.url, "alt": img.alt, "sort_order": img.sort_order}
+                for img in rel_ordered_images
+                if str(img.url or "").strip() and str(img.url or "").strip() != str(rel.image_url or "").strip()
             ]
+
+            rel_data = ProductListItemRead.model_validate(rel).model_dump(mode="json")
+            rel_data["images"] = rel_related_images
+            rel_data["gallery_urls"] = "\n".join(image["url"] for image in rel_related_images)
             related.append(rel_data)
 
     data["related_products"] = related

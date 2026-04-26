@@ -17,6 +17,22 @@ class ProductImageRead(BaseModel):
 
 # ─── ProductCategory ─────────────────────────────────────────────────────────
 
+class ProductCategoryNodeRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    slug: str
+    description: str | None = None
+    parent_id: int | None = None
+    image_url: str | None = None
+    sort_order: int = 0
+    is_active: bool = True
+    product_count: int = 0
+    direct_product_count: int = 0
+    children: list['ProductCategoryNodeRead'] = []
+
+
 class ProductCategoryRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -24,16 +40,20 @@ class ProductCategoryRead(BaseModel):
     name: str
     slug: str
     description: str | None = None
+    parent_id: int | None = None
     image_url: str | None = None
     sort_order: int = 0
     is_active: bool = True
     product_count: int = 0  # computed, không từ ORM
+    direct_product_count: int = 0  # computed, không từ ORM
+    children: list[ProductCategoryNodeRead] = []
 
 
 class ProductCategoryCreate(BaseModel):
     name: str
     slug: str
     description: str | None = None
+    parent_id: int | None = None
     image_url: str | None = None
     sort_order: int = 0
     is_active: bool = True
@@ -43,6 +63,7 @@ class ProductCategoryUpdate(BaseModel):
     name: str | None = None
     slug: str | None = None
     description: str | None = None
+    parent_id: int | None = None
     image_url: str | None = None
     sort_order: int | None = None
     is_active: bool | None = None

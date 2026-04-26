@@ -1,0 +1,444 @@
+{
+  "summary": {
+    "product_id_start": 662,
+    "product_id_end": 680,
+    "execute": true,
+    "force": false,
+    "products_total": 19,
+    "ready_total": 0,
+    "updated_total": 15,
+    "skipped_total": 4,
+    "matched_media_total": 30
+  },
+  "results": [
+    {
+      "product_id": 662,
+      "sku": "OS.01.3D",
+      "slug": "da-mem-os-01-3d",
+      "name": "Travertine 3D",
+      "status": "updated",
+      "reason": "Đã repair ảnh từ media_assets vào products/product_images.",
+      "current_image_url_before": "",
+      "image_url_after": "https://res.cloudinary.com/db1b15yn4/image/upload/v1777088873/China_web/products/da-mem-os-01-3d/os-01-23-45-3d-xam-da-1.jpg",
+      "gallery_count_before": 0,
+      "gallery_count_after": 2,
+      "matched_media_count": 3,
+      "matched_media_ids": [
+        20,
+        21,
+        22
+      ],
+      "matched_storage_paths": [
+        "China_web/products/da-mem-os-01-3d/os-01-23-45-3d-xam-da-1",
+        "China_web/products/da-mem-os-01-3d/os-01-29-45-3d-xam-be-nhat-1",
+        "China_web/products/da-mem-os-01-3d/os-01-32-45-3d-do-cam-dat-1"
+      ],
+      "final_primary": "https://res.cloudinary.com/db1b15yn4/image/upload/v1777088873/China_web/products/da-mem-os-01-3d/os-01-23-45-3d-xam-da-1.jpg",
+      "final_gallery": [
+        "https://res.cloudinary.com/db1b15yn4/image/upload/v1777088881/China_web/products/da-mem-os-01-3d/os-01-29-45-3d-xam-be-nhat-1.jpg",
+        "https://res.cloudinary.com/db1b15yn4/image/upload/v1777088883/China_web/products/da-mem-os-01-3d/os-01-32-45-3d-do-cam-dat-1.jpg"
+      ]
+    },
+    {
+      "product_id": 663,
+      "sku": "OS.02",
+      "slug": "da-mem-os-02",
+      "name": "Vân vải",
+      "status": "updated",
+      "reason": "Đã repair ảnh từ media_assets vào products/product_images.",
+      "current_image_url_before": "",
+      "image_url_after": "https://res.cloudinary.com/db1b15yn4/image/upload/v1777090165/China_web/products/da-mem-os-02/os-02-13-34-xam-trang-1.jpg",
+      "gallery_count_before": 0,
+      "gallery_count_after": 2,
+      "matched_media_count": 3,
+      "matched_media_ids": [
+        23,
+        24,
+        25
+      ],
+      "matched_storage_paths": [
+        "China_web/products/da-mem-os-02/os-02-13-34-xam-trang-1",
+        "China_web/products/da-mem-os-02/os-02-32-34-do-cam-dat",
+        "China_web/products/da-mem-os-02/os-02-231-34-xam-xi-mang-dam"
+      ],
+      "final_primary": "https://res.cloudinary.com/db1b15yn4/image/upload/v1777090165/China_web/products/da-mem-os-02/os-02-13-34-xam-trang-1.jpg",
+      "final_gallery": [
+        "https://res.cloudinary.com/db1b15yn4/image/upload/v1777090172/China_web/products/da-mem-os-02/os-02-32-34-do-cam-dat.jpg",
+        "https://res.cloudinary.com/db1b15yn4/image/upload/v1777090173/China_web/products/da-mem-os-02/os-02-231-34-xam-xi-mang-dam.jpg"
+      ]
+    },
+    {
+      "product_id": 664,
+      "sku": "OS.03",
+      "slug": "da-mem-os-03",
+      "name": "Đá phiến sét",
+      "status": "updated",
+      "reason": "Đã repair ảnh từ media_assets vào products/product_images.",
+      "current_image_url_before": "",
+      "image_url_after": "https://res.cloudinary.com/db1b15yn4/image/upload/v1777090221/China_web/products/da-mem-os-03/os-03-13-34-trang-xam.jpg",
+      "gallery_count_before": 0,
+      "gallery_count_after": 1,
+      "matched_media_count": 2,
+      "matched_media_ids": [
+        26,
+        27
+      ],
+      "matched_storage_paths": [
+        "China_web/products/da-mem-os-03/os-03-13-34-trang-xam",
+        "China_web/products/da-mem-os-03/os-03-331-34-do-gach-dam"
+      ],
+      "final_primary": "https://res.cloudinary.com/db1b15yn4/image/upload/v1777090221/China_web/products/da-mem-os-03/os-03-13-34-trang-xam.jpg",
+      "final_gallery": [
+        "https://res.cloudinary.com/db1b15yn4/image/upload/v1777090228/China_web/products/da-mem-os-03/os-03-331-34-do-gach-dam.jpg"
+      ]
+    },
+    {
+      "product_id": 665,
+      "sku": "OS.03.3D",
+      "slug": "da-mem-os-03-3d",
+      "name": "Đá phiến 3D",
+      "status": "updated",
+      "reason": "Đã repair ảnh từ media_assets vào products/product_images.",
+      "current_image_url_before": "",
+      "image_url_after": "https://res.cloudinary.com/db1b15yn4/image/upload/v1777090251/China_web/products/da-mem-os-03-3d/os-03-22-34-3d-xam-bac.jpg",
+      "gallery_count_before": 0,
+      "gallery_count_after": 3,
+      "matched_media_count": 4,
+      "matched_media_ids": [
+        28,
+        29,
+        30,
+        31
+      ],
+      "matched_storage_paths": [
+        "China_web/products/da-mem-os-03-3d/os-03-22-34-3d-xam-bac",
+        "China_web/products/da-mem-os-03-3d/os-03-26-34-3d-xam-granite",
+        "China_web/products/da-mem-os-03-3d/os-03-53-34-3d-nau-hong-dat",
+        "China_web/products/da-mem-os-03-3d/os-03-241-34-3d-xam-da-sang"
+      ],
+      "final_primary": "https://res.cloudinary.com/db1b15yn4/image/upload/v1777090251/China_web/products/da-mem-os-03-3d/os-03-22-34-3d-xam-bac.jpg",
+      "final_gallery": [
+        "https://res.cloudinary.com/db1b15yn4/image/upload/v1777090259/China_web/products/da-mem-os-03-3d/os-03-26-34-3d-xam-granite.jpg",
+        "https://res.cloudinary.com/db1b15yn4/image/upload/v1777090261/China_web/products/da-mem-os-03-3d/os-03-53-34-3d-nau-hong-dat.jpg",
+        "https://res.cloudinary.com/db1b15yn4/image/upload/v1777090262/China_web/products/da-mem-os-03-3d/os-03-241-34-3d-xam-da-sang.jpg"
+      ]
+    },
+    {
+      "product_id": 666,
+      "sku": "OS.04",
+      "slug": "da-mem-os-04",
+      "name": "Vân đan sợi",
+      "status": "updated",
+      "reason": "Đã repair ảnh từ media_assets vào products/product_images.",
+      "current_image_url_before": "",
+      "image_url_after": "https://res.cloudinary.com/db1b15yn4/image/upload/v1777090283/China_web/products/da-mem-os-04/os-04-29-3456-be-xam.jpg",
+      "gallery_count_before": 0,
+      "gallery_count_after": 1,
+      "matched_media_count": 2,
+      "matched_media_ids": [
+        32,
+        33
+      ],
+      "matched_storage_paths": [
+        "China_web/products/da-mem-os-04/os-04-29-3456-be-xam",
+        "China_web/products/da-mem-os-04/os-04-42-3456-vang-cat"
+      ],
+      "final_primary": "https://res.cloudinary.com/db1b15yn4/image/upload/v1777090283/China_web/products/da-mem-os-04/os-04-29-3456-be-xam.jpg",
+      "final_gallery": [
+        "https://res.cloudinary.com/db1b15yn4/image/upload/v1777090290/China_web/products/da-mem-os-04/os-04-42-3456-vang-cat.jpg"
+      ]
+    },
+    {
+      "product_id": 667,
+      "sku": "OS.05",
+      "slug": "da-mem-os-05",
+      "name": "Đá tinh nguyệt",
+      "status": "updated",
+      "reason": "Đã repair ảnh từ media_assets vào products/product_images.",
+      "current_image_url_before": "",
+      "image_url_after": "https://res.cloudinary.com/db1b15yn4/image/upload/v1777090337/China_web/products/da-mem-os-05/os-05-06-34-den.jpg",
+      "gallery_count_before": 0,
+      "gallery_count_after": 3,
+      "matched_media_count": 4,
+      "matched_media_ids": [
+        34,
+        35,
+        36,
+        37
+      ],
+      "matched_storage_paths": [
+        "China_web/products/da-mem-os-05/os-05-06-34-den",
+        "China_web/products/da-mem-os-05/os-05-13-34-xam-trang",
+        "China_web/products/da-mem-os-05/os-05-24-34-xam-xi-mang",
+        "China_web/products/da-mem-os-05/os-05-421-34-vang-cat-nhat"
+      ],
+      "final_primary": "https://res.cloudinary.com/db1b15yn4/image/upload/v1777090337/China_web/products/da-mem-os-05/os-05-06-34-den.jpg",
+      "final_gallery": [
+        "https://res.cloudinary.com/db1b15yn4/image/upload/v1777090358/China_web/products/da-mem-os-05/os-05-13-34-xam-trang.jpg",
+        "https://res.cloudinary.com/db1b15yn4/image/upload/v1777090359/China_web/products/da-mem-os-05/os-05-24-34-xam-xi-mang.jpg",
+        "https://res.cloudinary.com/db1b15yn4/image/upload/v1777090360/China_web/products/da-mem-os-05/os-05-421-34-vang-cat-nhat.jpg"
+      ]
+    },
+    {
+      "product_id": 668,
+      "sku": "OS.06",
+      "slug": "da-mem-os-06",
+      "name": "Đá hoa cương",
+      "status": "updated",
+      "reason": "Đã repair ảnh từ media_assets vào products/product_images.",
+      "current_image_url_before": "",
+      "image_url_after": "https://res.cloudinary.com/db1b15yn4/image/upload/v1777090380/China_web/products/da-mem-os-06/os-06-28-34-xam-muoi-tieu.jpg",
+      "gallery_count_before": 0,
+      "gallery_count_after": 0,
+      "matched_media_count": 1,
+      "matched_media_ids": [
+        38
+      ],
+      "matched_storage_paths": [
+        "China_web/products/da-mem-os-06/os-06-28-34-xam-muoi-tieu"
+      ],
+      "final_primary": "https://res.cloudinary.com/db1b15yn4/image/upload/v1777090380/China_web/products/da-mem-os-06/os-06-28-34-xam-muoi-tieu.jpg",
+      "final_gallery": []
+    },
+    {
+      "product_id": 669,
+      "sku": "OS.06.3D",
+      "slug": "da-mem-os-06-3d",
+      "name": "Đá hoa cương 3D",
+      "status": "updated",
+      "reason": "Đã repair ảnh từ media_assets vào products/product_images.",
+      "current_image_url_before": "",
+      "image_url_after": "https://res.cloudinary.com/db1b15yn4/image/upload/v1777090402/China_web/products/da-mem-os-06-3d/os-06-54-04-3d-hong-granite.jpg",
+      "gallery_count_before": 0,
+      "gallery_count_after": 0,
+      "matched_media_count": 1,
+      "matched_media_ids": [
+        39
+      ],
+      "matched_storage_paths": [
+        "China_web/products/da-mem-os-06-3d/os-06-54-04-3d-hong-granite"
+      ],
+      "final_primary": "https://res.cloudinary.com/db1b15yn4/image/upload/v1777090402/China_web/products/da-mem-os-06-3d/os-06-54-04-3d-hong-granite.jpg",
+      "final_gallery": []
+    },
+    {
+      "product_id": 670,
+      "sku": "OS.07",
+      "slug": "da-mem-os-07",
+      "name": "Đá xẻ rãnh",
+      "status": "updated",
+      "reason": "Đã repair ảnh từ media_assets vào products/product_images.",
+      "current_image_url_before": "",
+      "image_url_after": "https://res.cloudinary.com/db1b15yn4/image/upload/v1777090464/China_web/products/da-mem-os-07/os-07-23-34.jpg",
+      "gallery_count_before": 0,
+      "gallery_count_after": 0,
+      "matched_media_count": 1,
+      "matched_media_ids": [
+        40
+      ],
+      "matched_storage_paths": [
+        "China_web/products/da-mem-os-07/os-07-23-34"
+      ],
+      "final_primary": "https://res.cloudinary.com/db1b15yn4/image/upload/v1777090464/China_web/products/da-mem-os-07/os-07-23-34.jpg",
+      "final_gallery": []
+    },
+    {
+      "product_id": 671,
+      "sku": "OS.08",
+      "slug": "da-mem-os-08",
+      "name": "Đất nện",
+      "status": "updated",
+      "reason": "Đã repair ảnh từ media_assets vào products/product_images.",
+      "current_image_url_before": "",
+      "image_url_after": "https://res.cloudinary.com/db1b15yn4/image/upload/v1777090495/China_web/products/da-mem-os-08/os-08-13-345-trang-xam.jpg",
+      "gallery_count_before": 0,
+      "gallery_count_after": 1,
+      "matched_media_count": 2,
+      "matched_media_ids": [
+        41,
+        42
+      ],
+      "matched_storage_paths": [
+        "China_web/products/da-mem-os-08/os-08-13-345-trang-xam",
+        "China_web/products/da-mem-os-08/os-08-34-345-do-dat"
+      ],
+      "final_primary": "https://res.cloudinary.com/db1b15yn4/image/upload/v1777090495/China_web/products/da-mem-os-08/os-08-13-345-trang-xam.jpg",
+      "final_gallery": [
+        "https://res.cloudinary.com/db1b15yn4/image/upload/v1777090505/China_web/products/da-mem-os-08/os-08-34-345-do-dat.jpg"
+      ]
+    },
+    {
+      "product_id": 672,
+      "sku": "OS.09",
+      "slug": "da-mem-os-09",
+      "name": "Đá dacit",
+      "status": "updated",
+      "reason": "Đã repair ảnh từ media_assets vào products/product_images.",
+      "current_image_url_before": "",
+      "image_url_after": "https://res.cloudinary.com/db1b15yn4/image/upload/v1777090524/China_web/products/da-mem-os-09/os-09-06-345-den-gpg.jpg",
+      "gallery_count_before": 0,
+      "gallery_count_after": 1,
+      "matched_media_count": 2,
+      "matched_media_ids": [
+        43,
+        44
+      ],
+      "matched_storage_paths": [
+        "China_web/products/da-mem-os-09/os-09-06-345-den-gpg",
+        "China_web/products/da-mem-os-09/os-09-15-345-gpg"
+      ],
+      "final_primary": "https://res.cloudinary.com/db1b15yn4/image/upload/v1777090524/China_web/products/da-mem-os-09/os-09-06-345-den-gpg.jpg",
+      "final_gallery": [
+        "https://res.cloudinary.com/db1b15yn4/image/upload/v1777090551/China_web/products/da-mem-os-09/os-09-15-345-gpg.jpg"
+      ]
+    },
+    {
+      "product_id": 673,
+      "sku": "OS.10",
+      "slug": "da-mem-os-10",
+      "name": "Đan tre",
+      "status": "updated",
+      "reason": "Đã repair ảnh từ media_assets vào products/product_images.",
+      "current_image_url_before": "",
+      "image_url_after": "https://res.cloudinary.com/db1b15yn4/image/upload/v1777090579/China_web/products/da-mem-os-10/os-10-43-03-vang-tre.jpg",
+      "gallery_count_before": 0,
+      "gallery_count_after": 0,
+      "matched_media_count": 1,
+      "matched_media_ids": [
+        45
+      ],
+      "matched_storage_paths": [
+        "China_web/products/da-mem-os-10/os-10-43-03-vang-tre"
+      ],
+      "final_primary": "https://res.cloudinary.com/db1b15yn4/image/upload/v1777090579/China_web/products/da-mem-os-10/os-10-43-03-vang-tre.jpg",
+      "final_gallery": []
+    },
+    {
+      "product_id": 674,
+      "sku": "OS.11",
+      "slug": "da-mem-os-11",
+      "name": "Đá nước chảy",
+      "status": "updated",
+      "reason": "Đã repair ảnh từ media_assets vào products/product_images.",
+      "current_image_url_before": "",
+      "image_url_after": "https://res.cloudinary.com/db1b15yn4/image/upload/v1777090640/China_web/products/da-mem-os-11/os-11-01-34-trang.jpg",
+      "gallery_count_before": 0,
+      "gallery_count_after": 1,
+      "matched_media_count": 2,
+      "matched_media_ids": [
+        46,
+        47
+      ],
+      "matched_storage_paths": [
+        "China_web/products/da-mem-os-11/os-11-01-34-trang",
+        "China_web/products/da-mem-os-11/os-11-27-34-xam-dam"
+      ],
+      "final_primary": "https://res.cloudinary.com/db1b15yn4/image/upload/v1777090640/China_web/products/da-mem-os-11/os-11-01-34-trang.jpg",
+      "final_gallery": [
+        "https://res.cloudinary.com/db1b15yn4/image/upload/v1777090648/China_web/products/da-mem-os-11/os-11-27-34-xam-dam.jpg"
+      ]
+    },
+    {
+      "product_id": 675,
+      "sku": "OS.12",
+      "slug": "da-mem-os-12",
+      "name": "Đá vân sóng",
+      "status": "updated",
+      "reason": "Đã repair ảnh từ media_assets vào products/product_images.",
+      "current_image_url_before": "",
+      "image_url_after": "https://res.cloudinary.com/db1b15yn4/image/upload/v1777090674/China_web/products/da-mem-os-12/os-12-14-34-trang-be.jpg",
+      "gallery_count_before": 0,
+      "gallery_count_after": 0,
+      "matched_media_count": 1,
+      "matched_media_ids": [
+        48
+      ],
+      "matched_storage_paths": [
+        "China_web/products/da-mem-os-12/os-12-14-34-trang-be"
+      ],
+      "final_primary": "https://res.cloudinary.com/db1b15yn4/image/upload/v1777090674/China_web/products/da-mem-os-12/os-12-14-34-trang-be.jpg",
+      "final_gallery": []
+    },
+    {
+      "product_id": 676,
+      "sku": "OS.13",
+      "slug": "da-mem-os-13",
+      "name": "Đá chẻ",
+      "status": "updated",
+      "reason": "Đã repair ảnh từ media_assets vào products/product_images.",
+      "current_image_url_before": "",
+      "image_url_after": "https://res.cloudinary.com/db1b15yn4/image/upload/v1777090749/China_web/products/da-mem-os-13/os-13-13-06-trang-xam-jpg.jpg",
+      "gallery_count_before": 0,
+      "gallery_count_after": 0,
+      "matched_media_count": 1,
+      "matched_media_ids": [
+        49
+      ],
+      "matched_storage_paths": [
+        "China_web/products/da-mem-os-13/os-13-13-06-trang-xam-jpg"
+      ],
+      "final_primary": "https://res.cloudinary.com/db1b15yn4/image/upload/v1777090749/China_web/products/da-mem-os-13/os-13-13-06-trang-xam-jpg.jpg",
+      "final_gallery": []
+    },
+    {
+      "product_id": 677,
+      "sku": "OS.14",
+      "slug": "da-mem-os-14",
+      "name": "Đá vân sọc",
+      "status": "skipped",
+      "reason": "Không tìm thấy media_assets nào khớp folder slug sản phẩm.",
+      "current_image_url_before": "",
+      "image_url_after": "",
+      "gallery_count_before": 0,
+      "gallery_count_after": 0,
+      "matched_media_count": 0,
+      "matched_media_ids": [],
+      "matched_storage_paths": []
+    },
+    {
+      "product_id": 678,
+      "sku": "OS.15",
+      "slug": "da-mem-os-15",
+      "name": "Đá vôi",
+      "status": "skipped",
+      "reason": "Không tìm thấy media_assets nào khớp folder slug sản phẩm.",
+      "current_image_url_before": "",
+      "image_url_after": "",
+      "gallery_count_before": 0,
+      "gallery_count_after": 0,
+      "matched_media_count": 0,
+      "matched_media_ids": [],
+      "matched_storage_paths": []
+    },
+    {
+      "product_id": 679,
+      "sku": "OS.16",
+      "slug": "da-mem-os-16",
+      "name": "Gạch thẻ",
+      "status": "skipped",
+      "reason": "Không tìm thấy media_assets nào khớp folder slug sản phẩm.",
+      "current_image_url_before": "",
+      "image_url_after": "",
+      "gallery_count_before": 0,
+      "gallery_count_after": 0,
+      "matched_media_count": 0,
+      "matched_media_ids": [],
+      "matched_storage_paths": []
+    },
+    {
+      "product_id": 680,
+      "sku": "OS.17",
+      "slug": "da-mem-os-17",
+      "name": "Gạch thẻ cổ điển",
+      "status": "skipped",
+      "reason": "Không tìm thấy media_assets nào khớp folder slug sản phẩm.",
+      "current_image_url_before": "",
+      "image_url_after": "",
+      "gallery_count_before": 0,
+      "gallery_count_after": 0,
+      "matched_media_count": 0,
+      "matched_media_ids": [],
+      "matched_storage_paths": []
+    }
+  ]
+}

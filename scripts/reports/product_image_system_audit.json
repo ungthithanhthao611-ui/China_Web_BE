@@ -1,0 +1,118 @@
+{
+  "health_status": "WARN",
+  "health_reasons": [
+    "Có 4 sản phẩm chưa có ảnh chính",
+    "Có 4 sản phẩm chưa có bất kỳ ảnh nào"
+  ],
+  "summary": {
+    "database_url": "postgresql+psycopg://neondb_owner:npg_3GFQAtIhkd0R@ep-wispy-hill-ao5nk7uq-pooler.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require",
+    "media_storage": "cloudinary",
+    "cloudinary_folder": "China_web",
+    "cloudinary_prefix_checked": "China_web",
+    "media_assets_total": 218,
+    "media_assets_cloudinary_total": 215,
+    "product_url_refs_total": 52,
+    "cloudinary_resources_total": 215,
+    "cloudinary_missing_in_media_assets_total": 0,
+    "media_assets_missing_on_cloudinary_total": 0,
+    "db_refs_without_media_asset_total": 0,
+    "db_refs_missing_on_cloudinary_total": 0,
+    "duplicate_media_asset_public_ids_total": 0
+  },
+  "product_summary": {
+    "products_missing_primary_total": 4,
+    "products_invalid_primary_url_total": 0,
+    "products_primary_missing_media_asset_total": 0,
+    "products_primary_missing_on_cloudinary_total": 0,
+    "products_gallery_contains_primary_total": 0,
+    "products_gallery_duplicate_urls_total": 0,
+    "products_invalid_gallery_urls_total": 0,
+    "products_gallery_missing_media_asset_total": 0,
+    "products_gallery_missing_on_cloudinary_total": 0,
+    "products_without_any_image_total": 4
+  },
+  "product_checks": {
+    "products_missing_primary": [
+      {
+        "product_id": 677,
+        "slug": "da-mem-os-14",
+        "name": "Đá vân sọc",
+        "sku": "OS.14"
+      },
+      {
+        "product_id": 678,
+        "slug": "da-mem-os-15",
+        "name": "Đá vôi",
+        "sku": "OS.15"
+      },
+      {
+        "product_id": 679,
+        "slug": "da-mem-os-16",
+        "name": "Gạch thẻ",
+        "sku": "OS.16"
+      },
+      {
+        "product_id": 680,
+        "slug": "da-mem-os-17",
+        "name": "Gạch thẻ cổ điển",
+        "sku": "OS.17"
+      }
+    ],
+    "products_invalid_primary_url": [],
+    "products_primary_missing_media_asset": [],
+    "products_primary_missing_on_cloudinary": [],
+    "products_gallery_contains_primary": [],
+    "products_gallery_duplicate_urls": [],
+    "products_invalid_gallery_urls": [],
+    "products_gallery_missing_media_asset": [],
+    "products_gallery_missing_on_cloudinary": [],
+    "products_without_any_image": [
+      {
+        "product_id": 677,
+        "slug": "da-mem-os-14",
+        "name": "Đá vân sọc",
+        "sku": "OS.14"
+      },
+      {
+        "product_id": 678,
+        "slug": "da-mem-os-15",
+        "name": "Đá vôi",
+        "sku": "OS.15"
+      },
+      {
+        "product_id": 679,
+        "slug": "da-mem-os-16",
+        "name": "Gạch thẻ",
+        "sku": "OS.16"
+      },
+      {
+        "product_id": 680,
+        "slug": "da-mem-os-17",
+        "name": "Gạch thẻ cổ điển",
+        "sku": "OS.17"
+      }
+    ]
+  },
+  "alignment": {
+    "summary": {
+      "database_url": "postgresql+psycopg://neondb_owner:npg_3GFQAtIhkd0R@ep-wispy-hill-ao5nk7uq-pooler.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require",
+      "media_storage": "cloudinary",
+      "cloudinary_folder": "China_web",
+      "cloudinary_prefix_checked": "China_web",
+      "media_assets_total": 218,
+      "media_assets_cloudinary_total": 215,
+      "product_url_refs_total": 52,
+      "cloudinary_resources_total": 215,
+      "cloudinary_missing_in_media_assets_total": 0,
+      "media_assets_missing_on_cloudinary_total": 0,
+      "db_refs_without_media_asset_total": 0,
+      "db_refs_missing_on_cloudinary_total": 0,
+      "duplicate_media_asset_public_ids_total": 0
+    },
+    "cloudinary_missing_in_media_assets": [],
+    "media_assets_missing_on_cloudinary": [],
+    "db_refs_without_media_asset": [],
+    "db_refs_missing_on_cloudinary": [],
+    "duplicate_media_asset_public_ids": []
+  }
+}

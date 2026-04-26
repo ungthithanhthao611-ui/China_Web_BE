@@ -16,9 +16,12 @@ class ProductCategory(BigIntPrimaryKeyMixin, TimestampMixin, SortOrderMixin, Bas
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
+    parent_id: Mapped[int | None] = mapped_column(ForeignKey("product_categories.id", ondelete="SET NULL"), index=True)
     image_url: Mapped[str | None] = mapped_column(String(1000))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
+    parent = relationship("ProductCategory", remote_side="ProductCategory.id", back_populates="children")
+    children = relationship("ProductCategory", back_populates="parent")
     products = relationship("Product", back_populates="category", lazy="select")
 
 

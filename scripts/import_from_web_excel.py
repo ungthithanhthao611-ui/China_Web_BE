@@ -36,6 +36,7 @@ from app.models.news import NewsPost
 from app.models.organization import Contact, Video
 from app.models.products import Product, ProductCategory, ProductImage
 from app.models.taxonomy import Language, SiteSetting
+from app.utils.contact_maps import build_google_maps_url, extract_coordinates
 from app.utils.slug import slugify
 
 
@@ -276,37 +277,12 @@ def parse_asset_sheet(asset_sheet) -> tuple[dict[str, list[str]], list[VideoSeed
 
 
 def parse_dms_coordinate(raw: str) -> tuple[str, str, str | None]:
-    text = str(raw or "").strip()
-    if not text:
+    parsed_pair = extract_coordinates(raw)
+    if not parsed_pair:
         return "0", "0", None
 
-    decimal_match = re.findall(r"-?\d+(?:\.\d+)?", text)
-    if len(decimal_match) == 2:
-        lat = str(float(decimal_match[0]))
-        lng = str(float(decimal_match[1]))
-        return lat, lng, f"https://www.google.com/maps?q={lat},{lng}"
-
-    pattern = re.compile(
-        r"(\d+)[^\d]+(\d+)[^\d]+(\d+(?:\.\d+)?)[^\dNSWE]*([NS])\s+"
-        r"(\d+)[^\d]+(\d+)[^\d]+(\d+(?:\.\d+)?)[^\dNSWE]*([EW])",
-        re.IGNORECASE,
-    )
-    match = pattern.search(text)
-    if not match:
-        return "0", "0", None
-
-    lat_deg, lat_min, lat_sec, lat_dir, lon_deg, lon_min, lon_sec, lon_dir = match.groups()
-    lat = float(lat_deg) + float(lat_min) / 60 + float(lat_sec) / 3600
-    lon = float(lon_deg) + float(lon_min) / 60 + float(lon_sec) / 3600
-    if lat_dir.upper() == "S":
-        lat = -lat
-    if lon_dir.upper() == "W":
-        lon = -lon
-
-    lat_str = str(round(lat, 6))
-    lon_str = str(round(lon, 6))
-    map_url = f"https://www.google.com/maps?q={lat_str},{lon_str}"
-    return lat_str, lon_str, map_url
+    latitude, longitude = parsed_pair
+    return latitude, longitude, build_google_maps_url(latitude, longitude)
 
 
 def get_content_text(content: dict[str, dict[str, Any]], key: str) -> str:
