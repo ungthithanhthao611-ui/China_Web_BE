@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import delete, inspect, select, text
+from sqlalchemy import delete, func, inspect, select, text
 from sqlalchemy.orm import Session
 
 from app.db.base import *  # noqa: F401,F403
@@ -28,6 +28,7 @@ def initialize_database() -> None:
     ensure_project_products_schema()
     ensure_inquiry_schema()
     ensure_product_schema()
+    ensure_video_schema()
     with SessionLocal() as session:
         seed_basics(session)
 
@@ -79,6 +80,20 @@ def ensure_product_schema() -> None:
         color_column = columns.get("color")
         if color_column and str(color_column.get("type", "")).lower().startswith("character varying"):
             conn.execute(text("ALTER TABLE products ALTER COLUMN color TYPE TEXT"))
+
+
+def ensure_video_schema() -> None:
+    with engine.begin() as conn:
+        inspector = inspect(conn)
+        table_names = set(inspector.get_table_names())
+        if "videos" not in table_names:
+            return
+
+        column_names = {column["name"] for column in inspector.get_columns("videos")}
+        if "product_id" not in column_names:
+            conn.execute(text("ALTER TABLE videos ADD COLUMN product_id BIGINT"))
+
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_videos_product_id ON videos (product_id)"))
 
 
 def ensure_media_schema() -> None:
@@ -287,12 +302,45 @@ def seed_basics(session: Session) -> None:
         seed_navigation(session=session, language_id=default_language_id)
         seed_honors(session=session)
         seed_contacts(session=session, language_id=default_language_id)
-        seed_about_page(session=session, language_id=default_language_id)
+        if not _has_seeded_about_cms_content(session=session, language_id=default_language_id):
+            seed_about_page(session=session, language_id=default_language_id)
     seed_product_categories(session=session)
     seed_products(session=session)
     seed_initial_admin_user(session=session)
 
     session.commit()
+
+
+def _has_seeded_about_cms_content(session: Session, language_id: int) -> bool:
+    about_page = session.scalar(select(Page).where(Page.slug == "about", Page.language_id == language_id))
+    if not about_page:
+        return False
+
+    block_count = (
+        session.scalar(
+            select(func.count()).select_from(ContentBlock).where(
+                ContentBlock.entity_type == "page",
+                ContentBlock.entity_id == about_page.id,
+            )
+        )
+        or 0
+    )
+    if block_count == 0:
+        return False
+
+    item_count = (
+        session.scalar(
+            select(func.count())
+            .select_from(ContentBlockItem)
+            .join(ContentBlock, ContentBlock.id == ContentBlockItem.block_id)
+            .where(
+                ContentBlock.entity_type == "page",
+                ContentBlock.entity_id == about_page.id,
+            )
+        )
+        or 0
+    )
+    return item_count > 0
 
 
 def seed_initial_admin_user(session: Session) -> None:
@@ -316,31 +364,36 @@ def seed_initial_admin_user(session: Session) -> None:
 
 
 def seed_product_categories(session: Session) -> None:
-    """Tạo danh mục sản phẩm mẫu nếu chưa có."""
-    existing = session.scalars(select(ProductCategory)).all()
-    
-    # We want to ensure the specific category from the sheet exists
+    """Ensure the baseline category exists without deleting admin-managed categories."""
     target_category_name = "Đá mềm Ốp tường linh hoạt"
     target_category_slug = "da-mem-op-tuong-linh-hoat"
-    
-    # Clear other categories as requested ("cái nào k đúng dl thì xóa")
-    for cat in existing:
-        if cat.name != target_category_name:
-            session.delete(cat)
-    
-    session.flush()
-    
-    # Check if target exists
+    target_description = (
+        "Danh mục sản phẩm trang trí bao gồm các dòng tấm ốp linh hoạt với đa dạng mẫu mã, "
+        "kích và bề mặt vân đá tự nhiên."
+    )
+
     target = session.scalar(select(ProductCategory).where(ProductCategory.slug == target_category_slug))
     if not target:
         target = ProductCategory(
-            name=target_category_name, 
-            slug=target_category_slug, 
-            description="Danh mục sản phẩm trang trí bao gồm các dòng tấm ốp linh hoạt với đa dạng mẫu mã, kích và bề mặt vân đá tự nhiên.",
-            sort_order=10, 
-            is_active=True
+            name=target_category_name,
+            slug=target_category_slug,
+            description=target_description,
+            sort_order=10,
+            is_active=True,
         )
         session.add(target)
+    else:
+        # Keep user-managed categories intact; only ensure core seed category metadata is valid.
+        if not str(target.name or "").strip():
+            target.name = target_category_name
+        if not str(target.description or "").strip():
+            target.description = target_description
+        if target.sort_order is None:
+            target.sort_order = 10
+        if target.is_active is None:
+            target.is_active = True
+        session.add(target)
+
     session.flush()
 
 
@@ -1084,3 +1137,4 @@ def _replace_menu_items(session: Session, menu: Menu, nodes: list[dict], parent_
         children = node.get("children") or []
         if children:
             _replace_menu_items(session=session, menu=menu, nodes=children, parent_id=item.id)
+

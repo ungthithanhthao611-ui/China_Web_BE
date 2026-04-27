@@ -1,13 +1,19 @@
 import json
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_SQLITE_DB_PATH = (PROJECT_ROOT / "china_web.db").resolve()
+DEFAULT_UPLOAD_DIR = (PROJECT_ROOT / "uploads").resolve()
+DEFAULT_ONLYOFFICE_STORAGE_DIR = (DEFAULT_UPLOAD_DIR / "post-documents").resolve()
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str((PROJECT_ROOT / ".env").resolve()),
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
@@ -17,11 +23,11 @@ class Settings(BaseSettings):
     environment: str = "development"
     debug: bool = True
     api_v1_prefix: str = "/api/v1"
-    database_url: str = "sqlite:///./china_web.db"
+    database_url: str = f"sqlite:///{DEFAULT_SQLITE_DB_PATH.as_posix()}"
     allowed_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173", "http://127.0.0.1:5173"])
     trusted_hosts: list[str] = Field(default_factory=lambda: ["localhost", "127.0.0.1"])
     docs_enabled: bool = True
-    upload_dir: str = "uploads"
+    upload_dir: str = str(DEFAULT_UPLOAD_DIR)
     upload_url_prefix: str = "/uploads"
     max_upload_size_mb: int = 50
     media_storage: str = "local"
@@ -43,7 +49,7 @@ class Settings(BaseSettings):
     onlyoffice_document_server_url: str = ""
     onlyoffice_callback_base_url: str = ""
     onlyoffice_jwt_secret: str = ""
-    onlyoffice_storage_dir: str = "uploads/post-documents"
+    onlyoffice_storage_dir: str = str(DEFAULT_ONLYOFFICE_STORAGE_DIR)
     onlyoffice_docx_public_base_url: str = ""
     onlyoffice_auto_convert_on_callback: bool = True
     auth_secret_key: str = "change-this-auth-secret"

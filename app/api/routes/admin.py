@@ -113,11 +113,11 @@ async def upload_media_asset(
 
 
 @router.post('/media/import-url', status_code=status.HTTP_201_CREATED)
-def import_media_asset_from_url(
+async def import_media_asset_from_url(
     payload: AdminRemoteMediaImportPayload,
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
-    return create_remote_media_asset(
+    return await create_remote_media_asset(
         db=db,
         source_url=payload.source_url,
         title=payload.title,

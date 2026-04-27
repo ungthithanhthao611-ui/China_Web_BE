@@ -50,4 +50,9 @@ if ($selectedPort -ne 8000) {
   Write-Host "Update FE env: VITE_API_BASE_URL=http://127.0.0.1:$selectedPort/api/v1" -ForegroundColor Yellow
 }
 
-& $pythonPath @args
+Push-Location -LiteralPath $projectRoot
+try {
+  & $pythonPath @args
+} finally {
+  Pop-Location
+}

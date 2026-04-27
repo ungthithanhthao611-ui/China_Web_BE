@@ -18,6 +18,7 @@ def _create_video(
     *,
     title: str,
     language_id: int,
+    product_id: int | None = None,
     status: str = "published",
     sort_order: int = 0,
     thumbnail_id: int | None = None,
@@ -30,6 +31,7 @@ def _create_video(
             "title": title,
             "description": f"{title} description",
             "video_url": video_url,
+            "product_id": product_id,
             "thumbnail_id": thumbnail_id,
             "language_id": language_id,
             "sort_order": sort_order,
@@ -155,3 +157,58 @@ def test_admin_create_video_requires_video_url(client, admin_headers: dict[str, 
     )
 
     assert response.status_code == 422, response.text
+
+
+def test_admin_create_video_rejects_unknown_product(client, admin_headers: dict[str, str]) -> None:
+    response = client.post(
+        "/api/v1/admin/videos",
+        headers=admin_headers,
+        json={
+            "title": "Video with unknown product",
+            "description": "invalid product id",
+            "video_url": "https://cdn.example.com/invalid-product.mp4",
+            "product_id": 999999,
+            "language_id": 1,
+            "sort_order": 0,
+            "status": "published",
+        },
+    )
+
+    assert response.status_code == 422, response.text
+
+
+def test_public_product_detail_uses_linked_video_when_product_video_url_empty(
+    client,
+    admin_headers: dict[str, str],
+) -> None:
+    create_product_response = client.post(
+        "/api/v1/admin/products",
+        headers=admin_headers,
+        json={
+            "name": "Linked Video Product",
+            "slug": "linked-video-product",
+            "sku": "LVP-001",
+            "short_desc": "product with linked video",
+            "is_active": True,
+        },
+    )
+    assert create_product_response.status_code == 201, create_product_response.text
+    created_product = create_product_response.json()
+
+    linked_video_url = "https://cdn.example.com/product-linked-demo.mp4"
+    _create_video(
+        client,
+        admin_headers,
+        title="Linked Product Demo",
+        language_id=1,
+        product_id=created_product["id"],
+        status="published",
+        video_url=linked_video_url,
+    )
+
+    detail_response = client.get("/api/v1/public/products/linked-video-product")
+    assert detail_response.status_code == 200, detail_response.text
+    detail = detail_response.json()
+
+    assert detail["id"] == created_product["id"]
+    assert detail["video_url"] == linked_video_url

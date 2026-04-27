@@ -14,10 +14,15 @@ class Video(BigIntPrimaryKeyMixin, TimestampMixin, SortOrderMixin, Base):
     description: Mapped[str | None] = mapped_column(Text)
     # Keep this generous because CDN/transformed URLs can be long.
     video_url: Mapped[str] = mapped_column(String(2000), nullable=False)
+    product_id: Mapped[int | None] = mapped_column(
+        ForeignKey("products.id", ondelete="SET NULL"),
+        index=True,
+    )
     thumbnail_id: Mapped[int | None] = mapped_column(ForeignKey("media_assets.id"))
     language_id: Mapped[int] = mapped_column(ForeignKey("languages.id"), nullable=False)
     status: Mapped[str] = mapped_column(String(50), default="published", index=True, nullable=False)
 
+    product = relationship("Product")
     thumbnail = relationship("MediaAsset")
 
 

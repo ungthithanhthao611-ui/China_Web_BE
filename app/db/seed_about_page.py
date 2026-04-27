@@ -402,9 +402,17 @@ def _seed_culture_blocks(session: Session, page_id: int, lang_id: int) -> None:
         ("Hợp tác lâu dài", "Phát triển bền vững cùng đối tác"),
       ],
     ),
+    (
+      "culture_slogan",
+      "Slogan",
+      135,
+      [
+        ("Slogan", "Uy tín từ những điều nhỏ nhất"),
+      ],
+    ),
   ]
 
-  culture_keys = ["culture_purpose", "culture_mission", "culture_spirit", "culture_values"]
+  culture_keys = ["culture_purpose", "culture_mission", "culture_spirit", "culture_values", "culture_slogan"]
   session.execute(
     delete(ContentBlockItem).where(
       ContentBlockItem.block_id.in_(

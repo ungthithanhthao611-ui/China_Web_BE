@@ -1,3 +1,4 @@
+import json
 import re
 from datetime import datetime, timezone
 from pathlib import Path
@@ -10,7 +11,8 @@ from sqlalchemy import String, cast, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.config import settings
-from app.models.organization import Honor, HonorCategory
+from app.models.organization import Contact, Honor, HonorCategory
+from app.models.taxonomy import SiteSetting
 from app.schemas.honors import (
     HonorCategoryCreateDTO,
     HonorCategoryReadDTO,
@@ -518,7 +520,201 @@ def resync_admin_honor_images_to_cloudinary(db: Session, *, actor_id: int | None
     }
 
 
+def _site_settings_map(db: Session) -> dict[str, str]:
+    items = db.scalars(select(SiteSetting).order_by(SiteSetting.id.asc())).all()
+    payload: dict[str, str] = {}
+    for item in items:
+        key = str(item.config_key or "").strip()
+        value = item.config_value
+        if key and value not in (None, ""):
+            payload[key] = value
+    return payload
+
+
+def _read_setting(settings_map: dict[str, str], keys: list[str], default: str = "") -> str:
+    for key in keys:
+        value = settings_map.get(key)
+        if value not in (None, ""):
+            return str(value).strip()
+    return default
+
+
+def _parse_json_list(raw_value: str | None) -> list[Any]:
+    if not raw_value:
+        return []
+    try:
+        payload = json.loads(raw_value)
+    except json.JSONDecodeError:
+        return []
+    return payload if isinstance(payload, list) else []
+
+
+def _safe_int(value: Any, default: int = 0) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _as_bool(value: Any, default: bool = True) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return default
+    normalized = str(value).strip().lower()
+    if normalized in {"1", "true", "yes", "y", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "n", "off"}:
+        return False
+    return default
+
+
+def _normalize_factory_gallery_item(item: Any, index: int) -> dict[str, Any] | None:
+    if not isinstance(item, dict):
+        return None
+    image_url = str(item.get("image_url") or item.get("url") or "").strip()
+    if not image_url:
+        return None
+    return {
+        "id": item.get("id") or f"factory-gallery-{index + 1}",
+        "title": str(item.get("title") or "Hình ảnh nhà máy").strip(),
+        "description": str(item.get("description") or item.get("short_description") or "").strip(),
+        "image_url": image_url,
+        "sort_order": _safe_int(item.get("sort_order"), index),
+        "is_active": _as_bool(item.get("is_active"), True),
+    }
+
+
+def _normalize_capability_card(item: Any, index: int) -> dict[str, Any] | None:
+    if not isinstance(item, dict):
+        return None
+    title = str(item.get("title") or "").strip()
+    description = str(item.get("description") or item.get("content") or "").strip()
+    if not title and not description:
+        return None
+    return {
+        "title": title or f"Năng lực sản xuất {index + 1}",
+        "description": description,
+        "icon": str(item.get("icon") or "factory").strip() or "factory",
+        "sort_order": _safe_int(item.get("sort_order"), index),
+        "is_active": _as_bool(item.get("is_active"), True),
+    }
+
+
+def _build_production_capabilities(settings_map: dict[str, str]) -> list[dict[str, Any]]:
+    structured_items = _parse_json_list(
+        _read_setting(settings_map, ["production_capabilities_json", "capability_production_cards_json"])
+    )
+    normalized_items = [
+        item
+        for index, raw_item in enumerate(structured_items)
+        if (item := _normalize_capability_card(raw_item, index)) is not None and item["is_active"]
+    ]
+    if normalized_items:
+        return sorted(normalized_items, key=lambda item: (item["sort_order"], item["title"]))
+
+    raw_text = _read_setting(settings_map, ["factory_technology", "production_technology", "machinery_process"])
+    if not raw_text:
+        return []
+
+    fallback_titles = [
+        "Dây chuyền sản xuất hiện đại",
+        "Máy móc tự động",
+        "Kiểm soát chất lượng",
+        "Năng lực cung ứng số lượng lớn",
+    ]
+    fallback_icons = ["factory", "cog", "shield", "boxes"]
+    segments = [segment.strip(" -•\n\r\t") for segment in re.split(r"\n+|[|;]+", raw_text) if segment.strip()]
+
+    items: list[dict[str, Any]] = []
+    for index, segment in enumerate(segments[:4]):
+        items.append(
+            {
+                "title": fallback_titles[index] if index < len(fallback_titles) else f"Năng lực {index + 1}",
+                "description": segment,
+                "icon": fallback_icons[index] if index < len(fallback_icons) else "factory",
+                "sort_order": index,
+                "is_active": True,
+            }
+        )
+    return items
+
+
+def _build_factory_stats(settings_map: dict[str, str], certificates: list[dict[str, Any]]) -> list[dict[str, str]]:
+    stats_source = _parse_json_list(_read_setting(settings_map, ["factory_stats_json", "capability_factory_stats_json"]))
+    structured_stats: list[dict[str, str]] = []
+    for item in stats_source:
+        if not isinstance(item, dict):
+            continue
+        label = str(item.get("label") or "").strip()
+        value = str(item.get("value") or "").strip()
+        if label and value:
+            structured_stats.append({"label": label, "value": value})
+    if structured_stats:
+        return structured_stats
+
+    derived_stats = [
+        {
+            "label": "Diện tích nhà máy",
+            "value": _read_setting(settings_map, ["factory_area", "factory_area_text", "factory_size"]),
+        },
+        {
+            "label": "Công suất mỗi năm",
+            "value": _read_setting(settings_map, ["annual_capacity", "factory_capacity", "production_capacity"]),
+        },
+        {
+            "label": "Dây chuyền sản xuất",
+            "value": _read_setting(settings_map, ["production_lines", "production_line_count", "factory_lines"]),
+        },
+        {
+            "label": "Chứng nhận",
+            "value": _read_setting(settings_map, ["factory_certifications", "factory_certificates_text"], str(len(certificates) or "")),
+        },
+    ]
+    return [item for item in derived_stats if item["value"]]
+
+
+def _select_capability_contact(db: Session) -> Contact | None:
+    contacts = db.scalars(
+        select(Contact)
+        .where(Contact.is_primary.is_(True))
+        .order_by(Contact.id.asc())
+    ).all()
+    if contacts:
+        factory_contact = next((item for item in contacts if str(item.contact_type or "").strip().lower() == "factory"), None)
+        return factory_contact or contacts[0]
+
+    contacts = db.scalars(select(Contact).order_by(Contact.id.asc())).all()
+    if not contacts:
+        return None
+    factory_contact = next((item for item in contacts if str(item.contact_type or "").strip().lower() == "factory"), None)
+    return factory_contact or contacts[0]
+
+
+def _normalize_map_embed(map_url: str | None) -> str:
+    raw_value = str(map_url or "").strip()
+    if not raw_value:
+        return ""
+    if "output=embed" in raw_value or "/maps/embed" in raw_value:
+        return raw_value
+    return f"https://www.google.com/maps?q={raw_value}&hl=vi&z=16&output=embed"
+
+
+def _category_label(record: Honor) -> str:
+    category_name = str(record.category.name).strip() if record.category and record.category.name else ""
+    if category_name:
+        return category_name
+    if record.display_type == "corporate_honors":
+        return "Corporate Honors"
+    if record.display_type == "project_honors":
+        return "Project Honors"
+    return "Qualification Certificate"
+
+
 def list_public_honors(db: Session, *, year: int | None = None) -> dict[str, Any]:
+    settings_map = _site_settings_map(db)
+    contact = _select_capability_contact(db)
+
     query = (
         select(Honor)
         .options(selectinload(Honor.category))
@@ -534,14 +730,17 @@ def list_public_honors(db: Session, *, year: int | None = None) -> dict[str, Any
         "corporate_honors": [],
         "project_honors": [],
     }
-    all_items: list[dict[str, Any]] = []
+    certificates: list[dict[str, Any]] = []
 
     for record in records:
         if record.category and (record.category.deleted_at is not None or not record.category.is_active):
             continue
 
         item = _honor_payload(record)
-        all_items.append(item)
+        item["issuer"] = item.get("issued_by")
+        item["description"] = item.get("short_description")
+        item["category"] = _category_label(record)
+        certificates.append(item)
 
         if record.display_type == "corporate_honors":
             grouped["corporate_honors"].append(item)
@@ -550,14 +749,85 @@ def list_public_honors(db: Session, *, year: int | None = None) -> dict[str, Any
         else:
             grouped["qualification_certificates"].append(item)
 
+    factory_gallery_raw = _parse_json_list(_read_setting(settings_map, ["factory_images_json", "capability_factory_gallery_json"]))
+    factory_gallery = [
+        item
+        for index, raw_item in enumerate(factory_gallery_raw)
+        if (item := _normalize_factory_gallery_item(raw_item, index)) is not None and item["is_active"]
+    ]
+    factory_gallery.sort(key=lambda item: (item["sort_order"], item["id"]))
+
+    main_image_url = _read_setting(settings_map, ["factory_main_image_url", "capability_factory_main_image_url"])
+    if not main_image_url and factory_gallery:
+        main_image_url = factory_gallery[0]["image_url"]
+
+    hero_banner = {
+        "title": _read_setting(settings_map, ["capability_hero_title", "honors_hero_title"], "NĂNG LỰC"),
+        "subtitle": _read_setting(
+            settings_map,
+            ["capability_hero_subtitle", "honors_hero_subtitle"],
+            "Hình ảnh nhà máy, công nghệ sản xuất, công suất thực tế và các chứng nhận ISO, CE.",
+        ),
+        "background_image_url": _read_setting(
+            settings_map,
+            ["capability_hero_background_image_url", "honors_hero_background", "capability_hero_image_url"],
+            main_image_url,
+        ),
+        "mobile_background_image_url": _read_setting(
+            settings_map,
+            ["capability_hero_mobile_background_image_url", "honors_hero_mobile_background"],
+            _read_setting(
+                settings_map,
+                ["capability_hero_background_image_url", "honors_hero_background", "capability_hero_image_url"],
+                main_image_url,
+            ),
+        ),
+        "seal_text": _read_setting(settings_map, ["capability_seal_text", "honors_seal_text"], "资质"),
+        "seal_image_url": _read_setting(settings_map, ["capability_seal_image_url", "honors_seal_image_url"]),
+        "is_active": _as_bool(_read_setting(settings_map, ["capability_hero_is_active"], "true"), True),
+    }
+
+    factory_overview = {
+        "title": _read_setting(settings_map, ["capability_factory_overview_title"], "Tổng quan nhà máy"),
+        "factory_name": _read_setting(settings_map, ["factory_name", "company_name"], contact.name if contact else ""),
+        "factory_address": _read_setting(settings_map, ["factory_address"], contact.address if contact else ""),
+        "factory_location": _read_setting(settings_map, ["factory_location", "factory_location_text"], "Location"),
+        "description": _read_setting(settings_map, ["factory_overview_description", "factory_description", "capability_factory_description"]),
+        "production_technology": _read_setting(settings_map, ["factory_technology", "production_technology"]),
+        "machinery_process": _read_setting(settings_map, ["machinery_process", "factory_machinery_process"]),
+        "production_capacity": _read_setting(settings_map, ["factory_capacity", "production_capacity"]),
+        "output_description": _read_setting(settings_map, ["factory_output_description", "output_description"]),
+        "main_image_url": main_image_url,
+        "stats": _build_factory_stats(settings_map, certificates),
+    }
+
+    contact_info = {
+        "address": _read_setting(settings_map, ["factory_address"], contact.address if contact else ""),
+        "email": contact.email if contact and contact.email else _read_setting(settings_map, ["company_email", "contact_email"]),
+        "phone": contact.phone if contact and contact.phone else _read_setting(settings_map, ["company_phone", "contact_phone"]),
+        "working_hours": _read_setting(settings_map, ["working_hours", "contact_working_hours"]),
+        "map_embed": _normalize_map_embed(contact.map_url if contact else _read_setting(settings_map, ["company_map_url", "google_map_url"])),
+        "google_map_url": contact.map_url if contact and contact.map_url else _read_setting(settings_map, ["company_map_url", "google_map_url"]),
+        "contact_name": contact.name if contact else _read_setting(settings_map, ["factory_name", "company_name"]),
+    }
+
+    production_capabilities = _build_production_capabilities(settings_map)
+
     return {
+        "hero_banner": hero_banner,
+        "factory_overview": factory_overview,
+        "production_capabilities": production_capabilities,
+        "factory_gallery": factory_gallery,
+        "certificates": certificates,
+        "contact_info": contact_info,
         "hero": {
-            "title": "NĂNG LỰC",
-            "description": "Hình ảnh nhà máy, công nghệ sản xuất, công suất thực tế và các chứng nhận ISO, CE.",
-            "background": "https://res.cloudinary.com/db1b15yn4/image/upload/v1776695465/width_1600_1_kqfqbl.png",
-            "mobile_background": "https://res.cloudinary.com/db1b15yn4/image/upload/v1776695465/width_1600_1_kqfqbl.png",
-            "accent": "https://omo-oss-image.thefastimg.com/portal-saas/ngc202303290005/cms/image/53e45437-3eaa-453a-87e7-5d86b6f29064.png",
+            "title": hero_banner["title"],
+            "description": hero_banner["subtitle"],
+            "background": hero_banner["background_image_url"],
+            "mobile_background": hero_banner["mobile_background_image_url"],
+            "accent": hero_banner["seal_image_url"],
+            "seal_text": hero_banner["seal_text"],
         },
         "sections": grouped,
-        "items": all_items,
+        "items": certificates,
     }

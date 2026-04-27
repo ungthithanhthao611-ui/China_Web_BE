@@ -10,7 +10,7 @@ from app.core.config import settings
 from app.models.content import Banner, ContentBlock, ContentBlockItem, Page, PageSection
 from app.models.media import MediaAsset
 from app.models.organization import Video
-from app.models.products import Product, ProductImage
+from app.models.products import Product, ProductCategory, ProductImage
 from app.models.projects import Project, ProjectCategory, ProjectCategoryItem, ProjectProduct
 from app.services.media import delete_media_asset_record
 from app.services.catalog import ENTITY_REGISTRY, EntityRegistration
@@ -50,6 +50,7 @@ def _about_section_from_block_key(block_key: Any) -> str:
         "culture_mission": "corporate_culture",
         "culture_spirit": "corporate_culture",
         "culture_values": "corporate_culture",
+        "culture_slogan": "corporate_culture",
         "timeline": "development_course",
         "leadership_care_gallery": "leadership_care",
     }
@@ -162,10 +163,16 @@ def _base_query_for_model(model: type):
         )
 
     if model is Video:
-        return query.options(selectinload(Video.thumbnail))
+        return query.options(
+            selectinload(Video.thumbnail),
+            selectinload(Video.product),
+        )
 
     if model is Product:
         return query.options(selectinload(Product.images), selectinload(Product.category))
+
+    if model is ProductCategory:
+        return query.options(selectinload(ProductCategory.parent))
 
     if model is ProjectProduct:
         return query.options(
@@ -193,6 +200,7 @@ def serialize(db: Session, record: Any, registration: EntityRegistration) -> dic
         payload["section_key"] = _about_section_from_block_key(payload.get("block_key"))
 
     if isinstance(record, Video):
+        payload["product_name"] = record.product.name if getattr(record, "product", None) else None
         payload["thumbnail"] = _serialize_media(getattr(record, "thumbnail", None))
 
     if isinstance(record, Product):
@@ -200,6 +208,9 @@ def serialize(db: Session, record: Any, registration: EntityRegistration) -> dic
             [img.url for img in sorted(getattr(record, "images", []) or [], key=lambda item: (item.sort_order, item.id))]
         )
         payload["category_name"] = record.category.name if getattr(record, "category", None) else None
+
+    if isinstance(record, ProductCategory):
+        payload["parent_name"] = record.parent.name if getattr(record, "parent", None) else None
 
     if isinstance(record, ProjectProduct):
         payload["project_name"] = record.project.title if getattr(record, "project", None) else None
@@ -322,6 +333,67 @@ def _raise_friendly_write_integrity_error(entity_name: str) -> None:
     )
 
 
+def _validate_product_category_parent(
+    db: Session,
+    *,
+    parent_id: int | None,
+    current_category_id: int | None = None,
+) -> int | None:
+    if parent_id is None:
+        return None
+
+    parent = db.get(ProductCategory, parent_id)
+    if not parent:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Parent product category does not exist.",
+        )
+
+    # Parent options must be top-level categories.
+    if parent.parent_id is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Invalid parent category: only top-level categories can be selected as parent.",
+        )
+
+    if current_category_id is not None and parent_id == current_category_id:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A product category cannot be its own parent.",
+        )
+
+    # Prevent cycles: current category cannot appear in the parent chain.
+    if current_category_id is not None:
+        seen: set[int] = set()
+        cursor: ProductCategory | None = parent
+        while cursor is not None:
+            if cursor.id == current_category_id:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Invalid parent category: this assignment creates a cyclic hierarchy.",
+                )
+            if cursor.id in seen:
+                break
+            seen.add(cursor.id)
+            cursor = db.get(ProductCategory, cursor.parent_id) if cursor.parent_id else None
+
+    return parent_id
+
+
+def _validate_video_product_id(db: Session, *, product_id: int | None) -> int | None:
+    if product_id is None:
+        return None
+
+    product = db.get(Product, product_id)
+    if not product:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Selected product does not exist.",
+        )
+
+    return product_id
+
+
 def _apply_admin_pages_filter(entity_name: str, model: type, query, count_query):
     if entity_name == "pages" and model is Page:
         canonical_about_condition = func.lower(func.coalesce(model.slug, "")) == "about"
@@ -440,7 +512,13 @@ def list_entity_records(
                 "company_introduction": ["intro_media", "intro_video", "intro_paragraphs"],
                 "chairman_speech": ["speech_profile", "speech_body", "speech_signature"],
                 "organization_chart": ["org_chart_image"],
-                "corporate_culture": ["culture_purpose", "culture_mission", "culture_spirit", "culture_values"],
+                "corporate_culture": [
+                    "culture_purpose",
+                    "culture_mission",
+                    "culture_spirit",
+                    "culture_values",
+                    "culture_slogan",
+                ],
                 "development_course": ["timeline"],
                 "leadership_care": ["leadership_care_gallery"],
             }
@@ -506,6 +584,16 @@ def create_entity_record(db: Session, entity_name: str, payload: dict[str, Any])
     product_gallery_urls = None
     if entity_name == "products":
         product_gallery_urls = data.pop("gallery_urls", None)
+    if entity_name == "product_categories":
+        data["parent_id"] = _validate_product_category_parent(
+            db,
+            parent_id=data.get("parent_id"),
+        )
+    if entity_name == "videos":
+        data["product_id"] = _validate_video_product_id(
+            db,
+            product_id=data.get("product_id"),
+        )
 
     record = registration.model(**data)
     db.add(record)
@@ -547,6 +635,17 @@ def update_entity_record(db: Session, entity_name: str, record_id: int, payload:
     product_gallery_urls = None
     if entity_name == "products":
         product_gallery_urls = data.pop("gallery_urls", None)
+    if entity_name == "product_categories" and "parent_id" in data:
+        data["parent_id"] = _validate_product_category_parent(
+            db,
+            parent_id=data.get("parent_id"),
+            current_category_id=record_id,
+        )
+    if entity_name == "videos" and "product_id" in data:
+        data["product_id"] = _validate_video_product_id(
+            db,
+            product_id=data.get("product_id"),
+        )
 
     for field_name, value in data.items():
         setattr(record, field_name, value)

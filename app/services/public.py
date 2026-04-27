@@ -722,6 +722,22 @@ def list_products(
     return {"items": payload, "pagination": {"skip": skip, "limit": limit, "total": total or 0}}
 
 
+def _get_linked_product_video_url(db: Session, product_id: int | None) -> str | None:
+    if not product_id:
+        return None
+
+    linked_video_url = db.scalar(
+        select(Video.video_url)
+        .where(
+            Video.product_id == product_id,
+            Video.status == "published",
+        )
+        .order_by(Video.sort_order, Video.id.desc())
+    )
+    normalized_url = str(linked_video_url or "").strip()
+    return normalized_url or None
+
+
 def get_product_detail(db: Session, slug: str) -> dict[str, Any]:
     product = db.scalar(
         select(Product)
@@ -739,6 +755,11 @@ def get_product_detail(db: Session, slug: str) -> dict[str, Any]:
     ]
 
     data = ProductRead.model_validate(product).model_dump(mode="json")
+    if not str(data.get("video_url") or "").strip():
+        linked_video_url = _get_linked_product_video_url(db=db, product_id=product.id)
+        if linked_video_url:
+            data["video_url"] = linked_video_url
+
     data["category_name"] = product.category.name if product.category else None
     data["images"] = related_images
     data["gallery_urls"] = "\n".join(image["url"] for image in related_images)
@@ -755,7 +776,6 @@ def get_product_detail(db: Session, slug: str) -> dict[str, Any]:
                 Product.is_active.is_(True),
             )
             .order_by(Product.sort_order, Product.id)
-            .limit(4)
         ).all()
         for rel in related_products:
             rel_ordered_images = sorted(rel.images, key=lambda img: (img.sort_order, img.id))

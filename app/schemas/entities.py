@@ -599,6 +599,7 @@ class VideoCreate(BaseModel):
     title: str
     description: str | None = None
     video_url: str
+    product_id: int | None = None
     thumbnail_id: int | None = None
     language_id: int = 1
     sort_order: int = 0
@@ -609,6 +610,7 @@ class VideoUpdate(BaseModel):
     title: str | None = None
     description: str | None = None
     video_url: str | None = None
+    product_id: int | None = None
     thumbnail_id: int | None = None
     language_id: int | None = None
     sort_order: int | None = None
@@ -620,6 +622,7 @@ class VideoRead(ORMModel):
     title: str
     description: str | None
     video_url: str
+    product_id: int | None
     thumbnail_id: int | None
     language_id: int
     sort_order: int

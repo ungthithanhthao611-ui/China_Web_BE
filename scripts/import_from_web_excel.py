@@ -56,11 +56,28 @@ SITE_SETTING_GROUPS: dict[str, tuple[str, str]] = {
     "company_core_values": ("company", "Company core values"),
     "company_leadership": ("company", "Company leadership summary"),
     "company_org_chart": ("company", "Company organization chart"),
-    "factory_images_json": ("company", "Factory image URLs in JSON array"),
-    "factory_address": ("company", "Factory address"),
-    "factory_technology": ("company", "Factory technology"),
-    "factory_capacity": ("company", "Factory capacity"),
-    "factory_certifications": ("company", "Factory certifications"),
+    "factory_images_json": ("capability", "Legacy factory image URLs in JSON array"),
+    "capability_factory_gallery_json": ("capability", "Factory gallery items for capability page"),
+    "factory_main_image_url": ("capability", "Primary factory image for capability overview"),
+    "capability_hero_title": ("capability", "Capability hero title"),
+    "capability_hero_subtitle": ("capability", "Capability hero subtitle"),
+    "capability_hero_background_image_url": ("capability", "Capability hero desktop background"),
+    "capability_hero_mobile_background_image_url": ("capability", "Capability hero mobile background"),
+    "capability_seal_text": ("capability", "Capability hero seal text"),
+    "capability_seal_image_url": ("capability", "Capability hero seal image"),
+    "capability_hero_is_active": ("capability", "Capability hero visibility flag"),
+    "capability_factory_overview_title": ("capability", "Capability factory overview title"),
+    "factory_name": ("capability", "Factory display name"),
+    "factory_address": ("capability", "Factory address"),
+    "factory_location": ("capability", "Factory location label"),
+    "factory_overview_description": ("capability", "Factory overview description"),
+    "factory_technology": ("capability", "Factory technology"),
+    "machinery_process": ("capability", "Factory machinery and process details"),
+    "factory_capacity": ("capability", "Factory capacity"),
+    "factory_output_description": ("capability", "Factory output description"),
+    "factory_stats_json": ("capability", "Factory stats in JSON array"),
+    "production_capabilities_json": ("capability", "Production capability cards in JSON array"),
+    "factory_certifications": ("capability", "Factory certifications"),
     "product_category_name": ("products", "Primary product category name"),
     "product_category_description": ("products", "Primary product category description"),
     "product_category_image_url": ("products", "Primary product category image URL"),
@@ -333,6 +350,58 @@ def parse_workbook(excel_path: Path) -> WorkbookPayload:
     else:
         news_published_at = None
 
+    factory_gallery_items = [
+        {
+            "id": f"factory-gallery-{index}",
+            "title": f"Hình ảnh nhà máy {index}",
+            "description": "",
+            "image_url": image_url,
+            "sort_order": index - 1,
+            "is_active": True,
+        }
+        for index, image_url in enumerate(factory_images, start=1)
+        if str(image_url).strip()
+    ]
+    factory_main_image_url = factory_gallery_items[0]["image_url"] if factory_gallery_items else ""
+
+    factory_stats_payload = [
+        {
+            "label": "Địa chỉ nhà máy",
+            "value": get_content_text(content, "DIA CHI NHA MAY"),
+        },
+        {
+            "label": "Công suất mỗi năm",
+            "value": get_content_text(content, "CONG SUAT"),
+        },
+        {
+            "label": "Chứng nhận",
+            "value": get_content_text(content, "CHUNG NHAN"),
+        },
+    ]
+    factory_stats_payload = [
+        item for item in factory_stats_payload if str(item.get("value") or "").strip()
+    ]
+
+    production_capabilities_payload = []
+    capability_source_rows = [
+        ("Dây chuyền sản xuất hiện đại", get_content_text(content, "CONG NGHE SAN XUAT"), "factory"),
+        ("Máy móc và quy trình", get_content_text(content, "QUY TRINH SAN XUAT"), "cog"),
+        ("Năng lực công suất", get_content_text(content, "CONG SUAT"), "boxes"),
+        ("Kiểm soát chất lượng", get_content_text(content, "CHUNG NHAN"), "shield"),
+    ]
+    for index, (title, description, icon) in enumerate(capability_source_rows):
+        if not str(description or "").strip():
+            continue
+        production_capabilities_payload.append(
+            {
+                "title": title,
+                "description": str(description).strip(),
+                "icon": icon,
+                "sort_order": index,
+                "is_active": True,
+            }
+        )
+
     settings_payload: dict[str, str] = {
         "site_name": get_content_text(content, "TEN CONG TY"),
         "company_name": get_content_text(content, "TEN CONG TY"),
@@ -347,9 +416,31 @@ def parse_workbook(excel_path: Path) -> WorkbookPayload:
         "company_leadership": get_content_text(content, "BAN LANH DAO"),
         "company_org_chart": get_content_text(content, "SO DO TO CHUC"),
         "factory_images_json": json.dumps(factory_images, ensure_ascii=False),
+        "capability_factory_gallery_json": json.dumps(factory_gallery_items, ensure_ascii=False),
+        "factory_main_image_url": factory_main_image_url,
+        "capability_hero_title": "NĂNG LỰC",
+        "capability_hero_subtitle": get_content_text(content, "CHUNG NHAN")
+        or get_content_text(content, "CONG NGHE SAN XUAT")
+        or "Hình ảnh nhà máy, công nghệ sản xuất, công suất thực tế và các chứng nhận tiêu chuẩn.",
+        "capability_hero_background_image_url": factory_main_image_url,
+        "capability_hero_mobile_background_image_url": factory_main_image_url,
+        "capability_seal_text": "资质",
+        "capability_seal_image_url": "",
+        "capability_hero_is_active": "true",
+        "capability_factory_overview_title": "Tổng quan nhà máy",
+        "factory_name": get_content_text(content, "TEN CONG TY"),
         "factory_address": get_content_text(content, "DIA CHI NHA MAY"),
+        "factory_location": "Location",
+        "factory_overview_description": get_content_text(content, "GIOI THIEU"),
         "factory_technology": get_content_text(content, "CONG NGHE SAN XUAT"),
+        "machinery_process": get_content_text(content, "QUY TRINH SAN XUAT"),
         "factory_capacity": get_content_text(content, "CONG SUAT"),
+        "factory_output_description": get_content_text(content, "MO TA DANH MUC"),
+        "factory_stats_json": json.dumps(factory_stats_payload, ensure_ascii=False),
+        "production_capabilities_json": json.dumps(
+            production_capabilities_payload,
+            ensure_ascii=False,
+        ),
         "factory_certifications": get_content_text(content, "CHUNG NHAN"),
         "product_category_name": get_content_text(content, "TEN DANH MUC"),
         "product_category_description": get_content_text(content, "MO TA DANH MUC"),
@@ -790,6 +881,7 @@ def apply_asset_resolution(payload: WorkbookPayload, resolver: AssetResolver) ->
     except Exception:
         factory_urls = []
     resolved_factory_urls = []
+    resolved_factory_gallery_items = []
     for index, url in enumerate(factory_urls, start=1):
         resolved = resolver.resolve(
             url,
@@ -799,7 +891,28 @@ def apply_asset_resolution(payload: WorkbookPayload, resolver: AssetResolver) ->
         )
         if resolved:
             resolved_factory_urls.append(resolved)
+            resolved_factory_gallery_items.append(
+                {
+                    "id": f"factory-gallery-{index}",
+                    "title": f"Hình ảnh nhà máy {index}",
+                    "description": "",
+                    "image_url": resolved,
+                    "sort_order": index - 1,
+                    "is_active": True,
+                }
+            )
     resolved_settings["factory_images_json"] = json.dumps(resolved_factory_urls, ensure_ascii=False)
+    resolved_settings["capability_factory_gallery_json"] = json.dumps(
+        resolved_factory_gallery_items,
+        ensure_ascii=False,
+    )
+    resolved_settings["factory_main_image_url"] = (
+        resolved_factory_gallery_items[0]["image_url"] if resolved_factory_gallery_items else ""
+    )
+    if not str(resolved_settings.get("capability_hero_background_image_url") or "").strip():
+        resolved_settings["capability_hero_background_image_url"] = resolved_settings["factory_main_image_url"]
+    if not str(resolved_settings.get("capability_hero_mobile_background_image_url") or "").strip():
+        resolved_settings["capability_hero_mobile_background_image_url"] = resolved_settings["factory_main_image_url"]
 
     resolved_products: list[ProductSeed] = []
     for product in payload.products:
