@@ -1,31 +1,14 @@
 services:
-  db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: china_web_db
-      POSTGRES_USER: china_web
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U china_web -d china_web_db"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   backend:
     build:
       context: .
-    depends_on:
-      db:
-        condition: service_healthy
     environment:
       APP_NAME: China Web API
       ENVIRONMENT: production
       DEBUG: "false"
       DOCS_ENABLED: "false"
       API_V1_PREFIX: /api/v1
-      DATABASE_URL: postgresql+psycopg://china_web:${POSTGRES_PASSWORD}@db:5432/china_web_db
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:8080}
       TRUSTED_HOSTS: ${TRUSTED_HOSTS:-localhost,127.0.0.1,backend}
       AUTH_SECRET_KEY: ${AUTH_SECRET_KEY:?Set AUTH_SECRET_KEY}
@@ -36,6 +19,12 @@ services:
       UPLOAD_URL_PREFIX: /uploads
       MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-20}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      MEDIA_STORAGE: ${MEDIA_STORAGE:-cloudinary}
+      CLOUDINARY_URL: ${CLOUDINARY_URL:-}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
+      CLOUDINARY_FOLDER: ${CLOUDINARY_FOLDER:-China_web}
     volumes:
       - backend_uploads:/app/uploads
     ports:
@@ -55,5 +44,4 @@ services:
     restart: unless-stopped
 
 volumes:
-  postgres_data:
   backend_uploads:

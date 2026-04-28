@@ -364,7 +364,7 @@ def seed_initial_admin_user(session: Session) -> None:
 
 
 def seed_product_categories(session: Session) -> None:
-    """Ensure the baseline category exists without deleting admin-managed categories."""
+    """Ensure the baseline category exists only for an empty catalog seed state."""
     target_category_name = "Đá mềm Ốp tường linh hoạt"
     target_category_slug = "da-mem-op-tuong-linh-hoat"
     target_description = (
@@ -373,16 +373,7 @@ def seed_product_categories(session: Session) -> None:
     )
 
     target = session.scalar(select(ProductCategory).where(ProductCategory.slug == target_category_slug))
-    if not target:
-        target = ProductCategory(
-            name=target_category_name,
-            slug=target_category_slug,
-            description=target_description,
-            sort_order=10,
-            is_active=True,
-        )
-        session.add(target)
-    else:
+    if target:
         # Keep user-managed categories intact; only ensure core seed category metadata is valid.
         if not str(target.name or "").strip():
             target.name = target_category_name
@@ -393,8 +384,27 @@ def seed_product_categories(session: Session) -> None:
         if target.is_active is None:
             target.is_active = True
         session.add(target)
+        session.flush()
+        return
 
+    existing_category_count = session.scalar(select(func.count()).select_from(ProductCategory)) or 0
+    if existing_category_count > 0:
+        # Important: if admin has renamed/re-slugged/deleted the original seed category,
+        # do not recreate it on restart. Recreating a new baseline category here makes it
+        # look like previous admin changes were lost, even though the old data still exists.
+        return
+
+    session.add(
+        ProductCategory(
+            name=target_category_name,
+            slug=target_category_slug,
+            description=target_description,
+            sort_order=10,
+            is_active=True,
+        )
+    )
     session.flush()
+
 
 
 def seed_media_assets(session: Session) -> dict[str, MediaAsset]:
@@ -554,11 +564,14 @@ def seed_site_settings(session: Session, language_id: int | None) -> None:
     for config_key, config_value, group_name, description in settings_seed:
         if config_key in settings_by_key:
             record = settings_by_key[config_key]
-            record.config_value = config_value
-            record.group_name = group_name
-            record.description = description
-            record.language_id = language_id
-            record.updated_at = now
+            if record.group_name != group_name:
+                record.group_name = group_name
+            if record.description != description:
+                record.description = description
+            if record.language_id is None and language_id is not None:
+                record.language_id = language_id
+            if record.updated_at is None:
+                record.updated_at = now
             session.add(record)
             continue
 
@@ -639,18 +652,24 @@ def seed_pages(session: Session, language_id: int, media_by_key: dict[str, Media
         page = pages_by_slug.get(key)
         if not page:
             page = Page(slug=page_seed["slug"], language_id=language_id)
-
-        page.title = page_seed["title"]
-        page.summary = page_seed["summary"]
-        page.body = page_seed["body"]
-        page.page_type = page_seed["page_type"]
-        page.parent_id = None
-        page.status = page_seed["status"]
-        page.meta_title = page_seed["meta_title"]
-        page.meta_description = page_seed["meta_description"]
-        page.sort_order = page_seed["sort_order"]
-        session.add(page)
-        session.flush()
+            page.title = page_seed["title"]
+            page.summary = page_seed["summary"]
+            page.body = page_seed["body"]
+            page.page_type = page_seed["page_type"]
+            page.parent_id = None
+            page.status = page_seed["status"]
+            page.meta_title = page_seed["meta_title"]
+            page.meta_description = page_seed["meta_description"]
+            page.sort_order = page_seed["sort_order"]
+            session.add(page)
+            session.flush()
+        else:
+            page.page_type = page.page_type or page_seed["page_type"]
+            page.status = page.status or page_seed["status"]
+            if page.sort_order is None:
+                page.sort_order = page_seed["sort_order"]
+            session.add(page)
+            session.flush()
 
         existing_sections = {
             (section.anchor or "", section.section_type or ""): section
@@ -662,13 +681,21 @@ def seed_pages(session: Session, language_id: int, media_by_key: dict[str, Media
             section = existing_sections.get(section_key)
             if not section:
                 section = PageSection(page_id=page.id)
+                section.anchor = section_seed["anchor"]
+                section.title = section_seed["title"]
+                section.content = section_seed["content"]
+                section.image_id = section_seed["image_id"]
+                section.section_type = section_seed["section_type"]
+                section.sort_order = section_seed["sort_order"]
+                session.add(section)
+                continue
 
-            section.anchor = section_seed["anchor"]
-            section.title = section_seed["title"]
-            section.content = section_seed["content"]
-            section.image_id = section_seed["image_id"]
-            section.section_type = section_seed["section_type"]
-            section.sort_order = section_seed["sort_order"]
+            if not str(section.anchor or "").strip():
+                section.anchor = section_seed["anchor"]
+            if not str(section.section_type or "").strip():
+                section.section_type = section_seed["section_type"]
+            if section.sort_order is None:
+                section.sort_order = section_seed["sort_order"]
             session.add(section)
 
     legacy_about_page = session.scalar(
@@ -713,9 +740,17 @@ def seed_banners(session: Session, language_id: int, media_by_key: dict[str, Med
     for banner_seed in banners_seed:
         key = (banner_seed["title"], language_id)
         banner = existing_banners.get(key)
-        if not banner:
-            banner = Banner(language_id=language_id)
+        if banner:
+            if banner.banner_type is None:
+                banner.banner_type = banner_seed["banner_type"]
+            if banner.sort_order is None:
+                banner.sort_order = banner_seed["sort_order"]
+            if banner.is_active is None:
+                banner.is_active = banner_seed["is_active"]
+            session.add(banner)
+            continue
 
+        banner = Banner(language_id=language_id)
         banner.title = banner_seed["title"]
         banner.subtitle = banner_seed["subtitle"]
         banner.body = banner_seed["body"]

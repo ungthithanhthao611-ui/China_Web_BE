@@ -62,7 +62,6 @@ SITE_SETTING_GROUPS: dict[str, tuple[str, str]] = {
     "capability_hero_title": ("capability", "Capability hero title"),
     "capability_hero_subtitle": ("capability", "Capability hero subtitle"),
     "capability_hero_background_image_url": ("capability", "Capability hero desktop background"),
-    "capability_hero_mobile_background_image_url": ("capability", "Capability hero mobile background"),
     "capability_seal_text": ("capability", "Capability hero seal text"),
     "capability_seal_image_url": ("capability", "Capability hero seal image"),
     "capability_hero_is_active": ("capability", "Capability hero visibility flag"),
@@ -423,7 +422,6 @@ def parse_workbook(excel_path: Path) -> WorkbookPayload:
         or get_content_text(content, "CONG NGHE SAN XUAT")
         or "Hình ảnh nhà máy, công nghệ sản xuất, công suất thực tế và các chứng nhận tiêu chuẩn.",
         "capability_hero_background_image_url": factory_main_image_url,
-        "capability_hero_mobile_background_image_url": factory_main_image_url,
         "capability_seal_text": "资质",
         "capability_seal_image_url": "",
         "capability_hero_is_active": "true",
@@ -911,8 +909,7 @@ def apply_asset_resolution(payload: WorkbookPayload, resolver: AssetResolver) ->
     )
     if not str(resolved_settings.get("capability_hero_background_image_url") or "").strip():
         resolved_settings["capability_hero_background_image_url"] = resolved_settings["factory_main_image_url"]
-    if not str(resolved_settings.get("capability_hero_mobile_background_image_url") or "").strip():
-        resolved_settings["capability_hero_mobile_background_image_url"] = resolved_settings["factory_main_image_url"]
+
 
     resolved_products: list[ProductSeed] = []
     for product in payload.products:

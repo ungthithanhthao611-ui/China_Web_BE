@@ -601,6 +601,23 @@ def _normalize_capability_card(item: Any, index: int) -> dict[str, Any] | None:
     }
 
 
+def _normalize_hero_banner_item(item: Any, index: int) -> dict[str, Any] | None:
+    if not isinstance(item, dict):
+        return None
+
+    background_image_url = str(item.get("background_image_url") or item.get("background") or "").strip()
+    if not background_image_url:
+        return None
+
+    return {
+        "title": str(item.get("title") or "NĂNG LỰC").strip() or "NĂNG LỰC",
+        "subtitle": str(item.get("subtitle") or item.get("description") or "").strip(),
+        "background_image_url": background_image_url,
+        "sort_order": _safe_int(item.get("sort_order"), index),
+        "is_active": _as_bool(item.get("is_active"), True),
+    }
+
+
 def _build_production_capabilities(settings_map: dict[str, str]) -> list[dict[str, Any]]:
     structured_items = _parse_json_list(
         _read_setting(settings_map, ["production_capabilities_json", "capability_production_cards_json"])
@@ -761,7 +778,20 @@ def list_public_honors(db: Session, *, year: int | None = None) -> dict[str, Any
     if not main_image_url and factory_gallery:
         main_image_url = factory_gallery[0]["image_url"]
 
-    hero_banner = {
+    hero_banners_version = _read_setting(settings_map, ["capability_hero_banners_version"])
+
+    hero_banners_raw = _parse_json_list(_read_setting(settings_map, ["capability_hero_banners_json"]))
+    hero_banners = [
+        {
+            **item,
+            "version": hero_banners_version,
+        }
+        for index, raw_item in enumerate(hero_banners_raw)
+        if (item := _normalize_hero_banner_item(raw_item, index)) is not None and item["is_active"]
+    ]
+    hero_banners.sort(key=lambda item: (item["sort_order"], item["title"]))
+
+    hero_banner_fallback = {
         "title": _read_setting(settings_map, ["capability_hero_title", "honors_hero_title"], "NĂNG LỰC"),
         "subtitle": _read_setting(
             settings_map,
@@ -773,15 +803,15 @@ def list_public_honors(db: Session, *, year: int | None = None) -> dict[str, Any
             ["capability_hero_background_image_url", "honors_hero_background", "capability_hero_image_url"],
             main_image_url,
         ),
-        "mobile_background_image_url": _read_setting(
-            settings_map,
-            ["capability_hero_mobile_background_image_url", "honors_hero_mobile_background"],
-            _read_setting(
-                settings_map,
-                ["capability_hero_background_image_url", "honors_hero_background", "capability_hero_image_url"],
-                main_image_url,
-            ),
-        ),
+        "version": hero_banners_version,
+    }
+    primary_hero_banner = hero_banners[0] if hero_banners else hero_banner_fallback
+
+    hero_banner = {
+        "title": primary_hero_banner["title"],
+        "subtitle": primary_hero_banner["subtitle"],
+        "background_image_url": primary_hero_banner["background_image_url"],
+        "version": hero_banners_version,
         "seal_text": _read_setting(settings_map, ["capability_seal_text", "honors_seal_text"], "资质"),
         "seal_image_url": _read_setting(settings_map, ["capability_seal_image_url", "honors_seal_image_url"]),
         "is_active": _as_bool(_read_setting(settings_map, ["capability_hero_is_active"], "true"), True),
@@ -815,6 +845,8 @@ def list_public_honors(db: Session, *, year: int | None = None) -> dict[str, Any
 
     return {
         "hero_banner": hero_banner,
+        "hero_banners": hero_banners,
+        "capability_hero_banners_json": json.dumps(hero_banners, ensure_ascii=False),
         "factory_overview": factory_overview,
         "production_capabilities": production_capabilities,
         "factory_gallery": factory_gallery,
@@ -824,9 +856,10 @@ def list_public_honors(db: Session, *, year: int | None = None) -> dict[str, Any
             "title": hero_banner["title"],
             "description": hero_banner["subtitle"],
             "background": hero_banner["background_image_url"],
-            "mobile_background": hero_banner["mobile_background_image_url"],
             "accent": hero_banner["seal_image_url"],
             "seal_text": hero_banner["seal_text"],
+            "version": hero_banners_version,
+            "banners_json": json.dumps(hero_banners, ensure_ascii=False),
         },
         "sections": grouped,
         "items": certificates,
