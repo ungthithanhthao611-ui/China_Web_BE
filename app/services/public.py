@@ -600,9 +600,29 @@ def list_videos(db: Session, language_code: str) -> list[dict[str, Any]]:
 
 # ─── Products ────────────────────────────────────────────────────────────────
 
+# ─── Products ────────────────────────────────────────────────────────────────
+
+def _translate_item(item: Any, language_code: str) -> Any:
+    if language_code == "vi":
+        return item
+    
+    suffix = f"_{language_code}"
+    # Fields that can be localized
+    fields = ["name", "description", "short_desc", "full_desc", "size", "material", "color", "use_case"]
+    
+    for field in fields:
+        localized_attr = f"{field}{suffix}"
+        if hasattr(item, localized_attr):
+            val = getattr(item, localized_attr)
+            if val and str(val).strip():
+                setattr(item, field, val)
+    return item
+
+
 def _build_product_category_tree(
     categories: list[ProductCategory],
     direct_counts: dict[int, int],
+    language_code: str,
 ) -> list[dict[str, Any]]:
     ordered_categories = sorted(categories, key=lambda row: (row.sort_order, row.id))
     valid_category_ids = {row.id for row in ordered_categories}
@@ -613,10 +633,11 @@ def _build_product_category_tree(
         children_map.setdefault(parent_id, []).append(category)
 
     def serialize_node(category: ProductCategory) -> dict[str, Any]:
+        translated_cat = _translate_item(category, language_code)
         child_nodes = [serialize_node(child) for child in children_map.get(category.id, [])]
         direct_product_count = direct_counts.get(category.id, 0)
         product_count = direct_product_count + sum(child["product_count"] for child in child_nodes)
-        payload = ProductCategoryNodeRead.model_validate(category).model_dump(mode="json")
+        payload = ProductCategoryNodeRead.model_validate(translated_cat).model_dump(mode="json")
         payload["direct_product_count"] = direct_product_count
         payload["product_count"] = product_count
         payload["children"] = child_nodes
@@ -625,7 +646,7 @@ def _build_product_category_tree(
     return [serialize_node(category) for category in children_map.get(None, [])]
 
 
-def list_product_categories(db: Session) -> dict[str, Any]:
+def list_product_categories(db: Session, language_code: str = "en") -> dict[str, Any]:
     """Trả về cây danh mục sản phẩm active kèm số lượng sản phẩm trực tiếp và cộng dồn."""
     categories = db.scalars(
         select(ProductCategory)
@@ -643,7 +664,7 @@ def list_product_categories(db: Session) -> dict[str, Any]:
     ).all()
     direct_counts: dict[int, int] = {row.category_id: row.cnt for row in counts_rows}
 
-    tree_items = _build_product_category_tree(categories, direct_counts)
+    tree_items = _build_product_category_tree(categories, direct_counts, language_code)
     flat_items: list[dict[str, Any]] = []
 
     def flatten(nodes: list[dict[str, Any]]) -> None:
@@ -665,6 +686,7 @@ def list_products(
     category_slug: str | None,
     skip: int,
     limit: int,
+    language_code: str = "en",
 ) -> dict[str, Any]:
     base_query = (
         select(Product)
@@ -706,6 +728,7 @@ def list_products(
 
     payload = []
     for product in items:
+        translated_product = _translate_item(product, language_code)
         ordered_images = sorted(product.images, key=lambda img: (img.sort_order, img.id))
         related_images = [
             {"url": img.url, "alt": img.alt, "sort_order": img.sort_order}
@@ -713,8 +736,13 @@ def list_products(
             if str(img.url or "").strip() and str(img.url or "").strip() != str(product.image_url or "").strip()
         ]
 
-        data = ProductListItemRead.model_validate(product).model_dump(mode="json")
-        data["category_name"] = product.category.name if product.category else None
+        data = ProductListItemRead.model_validate(translated_product).model_dump(mode="json")
+        if product.category:
+            translated_cat = _translate_item(product.category, language_code)
+            data["category_name"] = translated_cat.name
+        else:
+            data["category_name"] = None
+            
         data["images"] = related_images
         data["gallery_urls"] = "\n".join(image["url"] for image in related_images)
         payload.append(data)
@@ -738,7 +766,7 @@ def _get_linked_product_video_url(db: Session, product_id: int | None) -> str | 
     return normalized_url or None
 
 
-def get_product_detail(db: Session, slug: str) -> dict[str, Any]:
+def get_product_detail(db: Session, slug: str, language_code: str = "en") -> dict[str, Any]:
     product = db.scalar(
         select(Product)
         .options(selectinload(Product.images), selectinload(Product.category))
@@ -747,6 +775,7 @@ def get_product_detail(db: Session, slug: str) -> dict[str, Any]:
     if not product:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found.")
 
+    translated_product = _translate_item(product, language_code)
     ordered_images = sorted(product.images, key=lambda img: (img.sort_order, img.id))
     related_images = [
         {"url": img.url, "alt": img.alt, "sort_order": img.sort_order}
@@ -754,13 +783,18 @@ def get_product_detail(db: Session, slug: str) -> dict[str, Any]:
         if str(img.url or "").strip() and str(img.url or "").strip() != str(product.image_url or "").strip()
     ]
 
-    data = ProductRead.model_validate(product).model_dump(mode="json")
+    data = ProductRead.model_validate(translated_product).model_dump(mode="json")
     if not str(data.get("video_url") or "").strip():
         linked_video_url = _get_linked_product_video_url(db=db, product_id=product.id)
         if linked_video_url:
             data["video_url"] = linked_video_url
 
-    data["category_name"] = product.category.name if product.category else None
+    if product.category:
+        translated_cat = _translate_item(product.category, language_code)
+        data["category_name"] = translated_cat.name
+    else:
+        data["category_name"] = None
+        
     data["images"] = related_images
     data["gallery_urls"] = "\n".join(image["url"] for image in related_images)
 
@@ -778,6 +812,7 @@ def get_product_detail(db: Session, slug: str) -> dict[str, Any]:
             .order_by(Product.sort_order, Product.id)
         ).all()
         for rel in related_products:
+            translated_rel = _translate_item(rel, language_code)
             rel_ordered_images = sorted(rel.images, key=lambda img: (img.sort_order, img.id))
             rel_related_images = [
                 {"url": img.url, "alt": img.alt, "sort_order": img.sort_order}
@@ -785,7 +820,7 @@ def get_product_detail(db: Session, slug: str) -> dict[str, Any]:
                 if str(img.url or "").strip() and str(img.url or "").strip() != str(rel.image_url or "").strip()
             ]
 
-            rel_data = ProductListItemRead.model_validate(rel).model_dump(mode="json")
+            rel_data = ProductListItemRead.model_validate(translated_rel).model_dump(mode="json")
             rel_data["images"] = rel_related_images
             rel_data["gallery_urls"] = "\n".join(image["url"] for image in rel_related_images)
             related.append(rel_data)

@@ -14,8 +14,15 @@ class ProductCategory(BigIntPrimaryKeyMixin, TimestampMixin, SortOrderMixin, Bas
     __tablename__ = "product_categories"
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
+    name_en: Mapped[str | None] = mapped_column(String(255))
+    name_zh: Mapped[str | None] = mapped_column(String(255))
+    
     slug: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
+    
     description: Mapped[str | None] = mapped_column(Text)
+    description_en: Mapped[str | None] = mapped_column(Text)
+    description_zh: Mapped[str | None] = mapped_column(Text)
+    
     parent_id: Mapped[int | None] = mapped_column(ForeignKey("product_categories.id", ondelete="SET NULL"), index=True)
     image_url: Mapped[str | None] = mapped_column(String(1000))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
@@ -32,17 +39,41 @@ class Product(BigIntPrimaryKeyMixin, TimestampMixin, SortOrderMixin, Base):
         ForeignKey("product_categories.id", ondelete="SET NULL"), index=True
     )
     sku: Mapped[str | None] = mapped_column(String(100), unique=True, index=True)
+    
     name: Mapped[str] = mapped_column(String(255), nullable=False)
+    name_en: Mapped[str | None] = mapped_column(String(255))
+    name_zh: Mapped[str | None] = mapped_column(String(255))
+    
     slug: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
+    
     short_desc: Mapped[str | None] = mapped_column(Text)
+    short_desc_en: Mapped[str | None] = mapped_column(Text)
+    short_desc_zh: Mapped[str | None] = mapped_column(Text)
+    
     full_desc: Mapped[str | None] = mapped_column(Text)
+    full_desc_en: Mapped[str | None] = mapped_column(Text)
+    full_desc_zh: Mapped[str | None] = mapped_column(Text)
+    
     size: Mapped[str | None] = mapped_column(String(255))
+    size_en: Mapped[str | None] = mapped_column(String(255))
+    size_zh: Mapped[str | None] = mapped_column(String(255))
+    
     material: Mapped[str | None] = mapped_column(String(255))
+    material_en: Mapped[str | None] = mapped_column(String(255))
+    material_zh: Mapped[str | None] = mapped_column(String(255))
+    
     color: Mapped[str | None] = mapped_column(Text)
+    color_en: Mapped[str | None] = mapped_column(Text)
+    color_zh: Mapped[str | None] = mapped_column(Text)
+    
     use_case: Mapped[str | None] = mapped_column(Text)
+    use_case_en: Mapped[str | None] = mapped_column(Text)
+    use_case_zh: Mapped[str | None] = mapped_column(Text)
+    
     video_url: Mapped[str | None] = mapped_column(String(2000))
     catalog_pdf_url: Mapped[str | None] = mapped_column(String(2000))
     image_url: Mapped[str | None] = mapped_column(String(1000))
+    price: Mapped[float | None] = mapped_column(default=0.0)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     category = relationship("ProductCategory", back_populates="products")
@@ -84,4 +115,23 @@ class ContactInquiry(BigIntPrimaryKeyMixin, TimestampMixin, Base):
     status: Mapped[str] = mapped_column(String(50), default="new", index=True, nullable=False)
     admin_response: Mapped[str | None] = mapped_column(Text)
 
+    product = relationship("Product")
+
+
+class Cart(BigIntPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "carts"
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True, index=True)
+    
+    items = relationship("CartItem", back_populates="cart", cascade="all, delete-orphan")
+
+
+class CartItem(BigIntPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "cart_items"
+
+    cart_id: Mapped[int] = mapped_column(ForeignKey("carts.id", ondelete="CASCADE"), index=True)
+    product_id: Mapped[int] = mapped_column(ForeignKey("products.id", ondelete="CASCADE"), index=True)
+    quantity: Mapped[int] = mapped_column(default=1, nullable=False)
+
+    cart = relationship("Cart", back_populates="items")
     product = relationship("Product")

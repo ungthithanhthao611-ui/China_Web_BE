@@ -18,6 +18,7 @@ from app.services.admin import (
     get_entity_record,
     list_entity_records,
     update_entity_record,
+    auto_translate_record,
 )
 from app.services.admin_navigation import (
     create_navigation_menu,
@@ -190,3 +191,12 @@ def update_entity(
 @router.delete("/{entity_name}/{record_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_entity(entity_name: str, record_id: int, db: Session = Depends(get_db)) -> None:
     delete_entity_record(db=db, entity_name=entity_name, record_id=record_id)
+
+
+@router.post("/{entity_name}/{record_id}/translate")
+def auto_translate_entity(
+    entity_name: str,
+    record_id: int,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    return auto_translate_record(db=db, entity_name=entity_name, record_id=record_id)

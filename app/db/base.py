@@ -1,9 +1,10 @@
 from app.models.admin import AdminUser
+from app.models.user import User
 from app.models.content import Banner, ContentBlock, ContentBlockItem, Page, PageSection
 from app.models.media import EntityMedia, MediaAsset
 from app.models.navigation import Menu, MenuItem
 from app.models.organization import Branch, Contact, Honor, HonorCategory, Video
-from app.models.products import ContactInquiry, Product, ProductCategory, ProductImage
+from app.models.products import Cart, CartItem, ContactInquiry, Product, ProductCategory, ProductImage
 from app.models.projects import Project, ProjectCategory, ProjectCategoryItem, ProjectProduct
 from app.models.news import NewsPost
 from app.models.taxonomy import Language, SiteSetting, Translation
@@ -12,6 +13,8 @@ __all__ = [
     "AdminUser",
     "Banner",
     "Branch",
+    "Cart",
+    "CartItem",
     "Contact",
     "ContactInquiry",
     "ContentBlock",
@@ -35,5 +38,6 @@ __all__ = [
     "ProjectProduct",
     "SiteSetting",
     "Translation",
+    "User",
     "Video",
 ]

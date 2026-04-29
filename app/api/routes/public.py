@@ -3,7 +3,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_db
+from app.api.deps import get_db, get_language_code
 from app.schemas.products import InquiryCreate
 from app.schemas.projects import ProjectCasePageRead
 from app.services.news import (
@@ -32,13 +32,13 @@ router = APIRouter()
 
 
 @router.get("/bootstrap")
-def bootstrap(language_code: str = Query(default="en"), db: Session = Depends(get_db)) -> dict[str, Any]:
+def bootstrap(language_code: str = Depends(get_language_code), db: Session = Depends(get_db)) -> dict[str, Any]:
     return get_bootstrap_payload(db=db, language_code=language_code)
 
 
 @router.get("/banners")
 def banners(
-    language_code: str = Query(default="en"),
+    language_code: str = Depends(get_language_code),
     banner_type: str | None = Query(default=None),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
@@ -46,13 +46,13 @@ def banners(
 
 
 @router.get("/pages/{slug}")
-def page_detail(slug: str, language_code: str = Query(default="en"), db: Session = Depends(get_db)) -> dict[str, Any]:
+def page_detail(slug: str, language_code: str = Depends(get_language_code), db: Session = Depends(get_db)) -> dict[str, Any]:
     return get_page_detail(db=db, slug=slug, language_code=language_code)
 
 
 @router.get("/projects")
 def projects(
-    language_code: str = Query(default="en"),
+    language_code: str = Depends(get_language_code),
     category_slug: str | None = Query(default=None),
     year: int | None = Query(default=None, ge=1900, le=2100),
     skip: int = Query(default=0, ge=0),
@@ -72,7 +72,7 @@ def projects(
 @router.get("/projects/{slug}")
 def project_detail(
     slug: str,
-    language_code: str = Query(default="en"),
+    language_code: str = Depends(get_language_code),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     return get_project_detail(db=db, slug=slug, language_code=language_code)
@@ -80,7 +80,7 @@ def project_detail(
 
 @router.get("/project-case", response_model=ProjectCasePageRead)
 def project_case(
-    language_code: str = Query(default="en"),
+    language_code: str = Depends(get_language_code),
     category_id: int | None = Query(default=None, ge=1),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
@@ -94,7 +94,7 @@ def project_case(
 @router.get("/project-case/{category_id}", response_model=ProjectCasePageRead)
 def project_case_detail(
     category_id: int,
-    language_code: str = Query(default="en"),
+    language_code: str = Depends(get_language_code),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     return get_project_case_page(
@@ -106,7 +106,7 @@ def project_case_detail(
 
 @router.get("/honors")
 def honors(
-    language_code: str = Query(default="en"),
+    language_code: str = Depends(get_language_code),
     award_year: int | None = Query(default=None, ge=1900, le=2100),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
@@ -115,7 +115,7 @@ def honors(
 
 @router.get("/branches")
 def branches(
-    language_code: str = Query(default="en"),
+    language_code: str = Depends(get_language_code),
     branch_type: str | None = Query(default=None),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
@@ -125,25 +125,25 @@ def branches(
 @router.get("/branches/{slug}")
 def branch_detail(
     slug: str,
-    language_code: str = Query(default="en"),
+    language_code: str = Depends(get_language_code),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     return get_branch_detail(db=db, slug=slug, language_code=language_code)
 
 
 @router.get("/contacts")
-def contacts(language_code: str = Query(default="en"), db: Session = Depends(get_db)) -> dict[str, Any]:
+def contacts(language_code: str = Depends(get_language_code), db: Session = Depends(get_db)) -> dict[str, Any]:
     return {"items": list_contacts(db=db, language_code=language_code)}
 
 
 @router.get("/videos")
-def videos(language_code: str = Query(default="en"), db: Session = Depends(get_db)) -> dict[str, Any]:
+def videos(language_code: str = Depends(get_language_code), db: Session = Depends(get_db)) -> dict[str, Any]:
     return {"items": list_videos(db=db, language_code=language_code)}
 
 
 @router.get("/product-categories")
-def product_categories(db: Session = Depends(get_db)) -> dict[str, Any]:
-    return list_product_categories(db=db)
+def product_categories(language_code: str = Depends(get_language_code), db: Session = Depends(get_db)) -> dict[str, Any]:
+    return list_product_categories(db=db, language_code=language_code)
 
 
 @router.get("/products")
@@ -151,14 +151,15 @@ def products(
     category_slug: str | None = Query(default=None),
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=12, ge=1, le=100),
+    language_code: str = Depends(get_language_code),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
-    return list_products(db=db, category_slug=category_slug, skip=skip, limit=limit)
+    return list_products(db=db, category_slug=category_slug, skip=skip, limit=limit, language_code=language_code)
 
 
 @router.get("/products/{slug}")
-def product_detail(slug: str, db: Session = Depends(get_db)) -> dict[str, Any]:
-    return get_product_detail(db=db, slug=slug)
+def product_detail(slug: str, language_code: str = Depends(get_language_code), db: Session = Depends(get_db)) -> dict[str, Any]:
+    return get_product_detail(db=db, slug=slug, language_code=language_code)
 
 
 @router.post("/inquiries", status_code=201)

@@ -1,6 +1,6 @@
 from typing import Generator
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, Header, HTTPException, Query, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -50,3 +50,22 @@ def require_admin_user(current_user: AdminUser = Depends(get_current_admin_user)
             detail="Admin role is required.",
         )
     return current_user
+
+
+def get_language_code(
+    language_code: str | None = Query(default=None),
+    lang_header: str | None = Header(default=None, alias="lang"),
+    accept_lang: str | None = Header(default=None, alias="Accept-Language"),
+) -> str:
+    """
+    Detects language code from Query param or Header.
+    Priority: Query > 'lang' Header > 'Accept-Language' Header > Default 'vi'
+    """
+    if language_code:
+        return language_code
+    if lang_header:
+        return lang_header
+    if accept_lang:
+        # Simple extraction for 'en-US,en;q=0.9' -> 'en'
+        return accept_lang.split(",")[0].split("-")[0].strip()
+    return "vi"

@@ -13,3 +13,4 @@ markdown==3.8
 pypdf==5.4.0
 python-docx==1.1.2
 openpyxl==3.1.5
+deep-translator==1.11.4

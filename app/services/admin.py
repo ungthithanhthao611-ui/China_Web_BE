@@ -15,6 +15,7 @@ from app.models.projects import Project, ProjectCategory, ProjectCategoryItem, P
 from app.services.media import delete_media_asset_record
 from app.services.catalog import ENTITY_REGISTRY, EntityRegistration
 from app.utils.contact_maps import normalize_contact_payload
+from app.services.translator import smart_translate
 
 try:
     from app.services.wordpress_sync import delete_wordpress_post
@@ -692,3 +693,43 @@ def delete_entity_record(db: Session, entity_name: str, record_id: int) -> None:
     except IntegrityError:
         db.rollback()
         _raise_friendly_delete_integrity_error(entity_name=entity_name, record=record)
+
+
+def auto_translate_record(db: Session, entity_name: str, record_id: int) -> dict[str, Any]:
+    if entity_name not in ["products", "product_categories"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Auto-translation is not supported for entity '{entity_name}'."
+        )
+    
+    registration = get_registration(entity_name)
+    record = db.get(registration.model, record_id)
+    if not record:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Record not found.")
+
+    # Fields to translate
+    fields_map = {
+        "products": ["name", "short_desc", "full_desc", "size", "material", "color", "use_case"],
+        "product_categories": ["name", "description"]
+    }
+    
+    fields = fields_map.get(entity_name, [])
+    target_langs = ["en", "zh"]
+    
+    for field in fields:
+        source_val = getattr(record, field, None)
+        if not source_val or not isinstance(source_val, str):
+            continue
+            
+        for lang in target_langs:
+            target_attr = f"{field}_{lang}"
+            if hasattr(record, target_attr):
+                # Only translate if target is empty
+                current_val = getattr(record, target_attr, None)
+                if not current_val or not str(current_val).strip():
+                    translated = smart_translate(source_val, lang)
+                    setattr(record, target_attr, translated)
+    
+    db.add(record)
+    db.commit()
+    return get_entity_record(db=db, entity_name=entity_name, record_id=record_id)

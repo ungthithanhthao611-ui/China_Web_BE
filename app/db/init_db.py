@@ -19,11 +19,30 @@ from app.db.seed_about_page import seed_about_page
 from app.db.seed_products import seed_products
 
 
+def ensure_user_schema() -> None:
+    with engine.begin() as conn:
+        inspector = inspect(conn)
+        table_names = set(inspector.get_table_names())
+        if "users" not in table_names:
+            return
+
+        column_names = {column["name"] for column in inspector.get_columns("users")}
+        columns_to_add = [
+            ("phone", "VARCHAR(20)"),
+            ("address", "VARCHAR(500)"),
+        ]
+
+        for column_name, column_type in columns_to_add:
+            if column_name not in column_names:
+                conn.execute(text(f"ALTER TABLE users ADD COLUMN {column_name} {column_type}"))
+
+
 def initialize_database() -> None:
     Base.metadata.create_all(bind=engine)
     ensure_media_schema()
     ensure_banners_schema()
     ensure_honors_schema()
+    ensure_user_schema()
     ensure_project_case_schema()
     ensure_project_products_schema()
     ensure_inquiry_schema()
@@ -73,13 +92,41 @@ def ensure_product_schema() -> None:
     with engine.begin() as conn:
         inspector = inspect(conn)
         table_names = set(inspector.get_table_names())
-        if "products" not in table_names:
-            return
+        
+        # Products table
+        if "products" in table_names:
+            columns = {column["name"]: column for column in inspector.get_columns("products")}
+            
+            # Fix color column type if needed
+            color_column = columns.get("color")
+            if color_column and str(color_column.get("type", "")).lower().startswith("character varying"):
+                conn.execute(text("ALTER TABLE products ALTER COLUMN color TYPE TEXT"))
+            
+            # Add localized columns and price
+            product_cols = [
+                ("name_en", "VARCHAR(255)"), ("name_zh", "VARCHAR(255)"),
+                ("short_desc_en", "TEXT"), ("short_desc_zh", "TEXT"),
+                ("full_desc_en", "TEXT"), ("full_desc_zh", "TEXT"),
+                ("size_en", "VARCHAR(255)"), ("size_zh", "VARCHAR(255)"),
+                ("material_en", "VARCHAR(255)"), ("material_zh", "VARCHAR(255)"),
+                ("color_en", "TEXT"), ("color_zh", "TEXT"),
+                ("use_case_en", "TEXT"), ("use_case_zh", "TEXT"),
+                ("price", "DOUBLE PRECISION DEFAULT 0.0"),
+            ]
+            for col_name, col_type in product_cols:
+                if col_name not in columns:
+                    conn.execute(text(f"ALTER TABLE products ADD COLUMN {col_name} {col_type}"))
 
-        columns = {column["name"]: column for column in inspector.get_columns("products")}
-        color_column = columns.get("color")
-        if color_column and str(color_column.get("type", "")).lower().startswith("character varying"):
-            conn.execute(text("ALTER TABLE products ALTER COLUMN color TYPE TEXT"))
+        # Product Categories table
+        if "product_categories" in table_names:
+            columns = {column["name"]: column for column in inspector.get_columns("product_categories")}
+            category_cols = [
+                ("name_en", "VARCHAR(255)"), ("name_zh", "VARCHAR(255)"),
+                ("description_en", "TEXT"), ("description_zh", "TEXT"),
+            ]
+            for col_name, col_type in category_cols:
+                if col_name not in columns:
+                    conn.execute(text(f"ALTER TABLE product_categories ADD COLUMN {col_name} {col_type}"))
 
 
 def ensure_video_schema() -> None:
@@ -297,13 +344,10 @@ def seed_basics(session: Session) -> None:
     seed_site_settings(session=session, language_id=default_language_id)
     if default_language_id is not None:
         media_by_key = seed_media_assets(session=session)
-        seed_pages(session=session, language_id=default_language_id, media_by_key=media_by_key)
-        seed_banners(session=session, language_id=default_language_id, media_by_key=media_by_key)
-        seed_navigation(session=session, language_id=default_language_id)
-        seed_honors(session=session)
-        seed_contacts(session=session, language_id=default_language_id)
-        if not _has_seeded_about_cms_content(session=session, language_id=default_language_id):
-            seed_about_page(session=session, language_id=default_language_id)
+    for lang in language_by_code.values():
+        seed_pages(session=session, language_id=lang.id, media_by_key=media_by_key)
+        if not _has_seeded_about_cms_content(session=session, language_id=lang.id):
+            seed_about_page(session=session, language_id=lang.id)
     seed_product_categories(session=session)
     seed_products(session=session)
     seed_initial_admin_user(session=session)
