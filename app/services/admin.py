@@ -7,13 +7,20 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload, joinedload
 
 from app.core.config import settings
+from app.core.security import hash_password
 from app.models.content import Banner, ContentBlock, ContentBlockItem, Page, PageSection
 from app.models.media import MediaAsset
 from app.models.organization import Video
 from app.models.products import Product, ProductCategory, ProductImage
 from app.models.projects import Project, ProjectCategory, ProjectCategoryItem, ProjectProduct
+from app.models.user import User, UserLoginHistory
+from app.schemas.user import UserLoginHistoryRead
 from app.services.media import delete_media_asset_record
 from app.services.catalog import ENTITY_REGISTRY, EntityRegistration
+from app.services.product_pricing import (
+    decorate_product_pricing_payload,
+    normalize_product_pricing_input,
+)
 from app.utils.contact_maps import normalize_contact_payload
 from app.services.translator import smart_translate
 
@@ -181,7 +188,12 @@ def _base_query_for_model(model: type):
             selectinload(ProjectProduct.product),
         )
 
+    if model is User:
+        return query.options(selectinload(User.login_history))
+
     return query
+
+
 
 
 def serialize(db: Session, record: Any, registration: EntityRegistration) -> dict[str, Any]:
@@ -209,6 +221,7 @@ def serialize(db: Session, record: Any, registration: EntityRegistration) -> dic
             [img.url for img in sorted(getattr(record, "images", []) or [], key=lambda item: (item.sort_order, item.id))]
         )
         payload["category_name"] = record.category.name if getattr(record, "category", None) else None
+        payload = decorate_product_pricing_payload(payload, record)
 
     if isinstance(record, ProductCategory):
         payload["parent_name"] = record.parent.name if getattr(record, "parent", None) else None
@@ -216,6 +229,21 @@ def serialize(db: Session, record: Any, registration: EntityRegistration) -> dic
     if isinstance(record, ProjectProduct):
         payload["project_name"] = record.project.title if getattr(record, "project", None) else None
         payload["product_name"] = record.product.name if getattr(record, "product", None) else None
+
+    if isinstance(record, User):
+        history_records = sorted(
+            list(getattr(record, "login_history", []) or []),
+            key=lambda item: (
+                getattr(item, "login_at", None) or getattr(item, "created_at", None),
+                getattr(item, "id", 0),
+            ),
+            reverse=True,
+        )
+        payload["login_history"] = [
+            UserLoginHistoryRead.model_validate(item, from_attributes=True).model_dump(mode="json")
+            for item in history_records
+        ]
+        payload["login_history_count"] = len(history_records)
 
     payload = _stringify_project_case_ids(registration.model.__tablename__, payload)
     return _decorate_project_case_admin_payload(db, registration.model.__tablename__, record, payload)
@@ -430,6 +458,7 @@ def list_entity_records(
     block_key: str | None = None,
     completeness: str | None = None,
     media_state: str | None = None,
+    stock_state: str | None = None,
 ) -> dict[str, Any]:
     registration = get_registration(entity_name)
     model = registration.model
@@ -487,6 +516,22 @@ def list_entity_records(
                 conditions = [cast(column, String).ilike(f"%{search}%") for column in search_columns]
                 query = query.where(or_(*conditions))
                 count_query = count_query.where(or_(*conditions))
+
+    normalized_stock_state = _clean_text(stock_state)
+    if entity_name == "products" and normalized_stock_state and hasattr(model, "stock_quantity"):
+        stock_column = getattr(model, "stock_quantity")
+        if normalized_stock_state == "in_stock":
+            stock_condition = stock_column > 0
+        elif normalized_stock_state == "low_stock":
+            stock_condition = stock_column.between(1, 5)
+        elif normalized_stock_state == "out_of_stock":
+            stock_condition = stock_column <= 0
+        else:
+            stock_condition = None
+
+        if stock_condition is not None:
+            query = query.where(stock_condition)
+            count_query = count_query.where(stock_condition)
 
     if entity_name == "content_block_items":
         normalized_block_key = _clean_text(block_key)
@@ -584,7 +629,16 @@ def create_entity_record(db: Session, entity_name: str, payload: dict[str, Any])
         ) from exc
     product_gallery_urls = None
     if entity_name == "products":
+        data = normalize_product_pricing_input(data)
         product_gallery_urls = data.pop("gallery_urls", None)
+    if entity_name == "users":
+        raw_password = str(data.pop("password", "")).strip()
+        if not raw_password:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Password is required when creating a user.",
+            )
+        data["password_hash"] = hash_password(raw_password)
     if entity_name == "product_categories":
         data["parent_id"] = _validate_product_category_parent(
             db,
@@ -635,7 +689,18 @@ def update_entity_record(db: Session, entity_name: str, record_id: int, payload:
         ) from exc
     product_gallery_urls = None
     if entity_name == "products":
+        data = normalize_product_pricing_input(data)
         product_gallery_urls = data.pop("gallery_urls", None)
+    if entity_name == "users":
+        raw_password = data.pop("password", None)
+        if raw_password is not None:
+            normalized_password = str(raw_password).strip()
+            if not normalized_password:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="Password cannot be empty.",
+                )
+            data["password_hash"] = hash_password(normalized_password)
     if entity_name == "product_categories" and "parent_id" in data:
         data["parent_id"] = _validate_product_category_parent(
             db,

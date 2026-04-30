@@ -4,10 +4,12 @@ from app.models.content import Banner, ContentBlock, ContentBlockItem, Page, Pag
 from app.models.media import EntityMedia, MediaAsset
 from app.models.navigation import Menu, MenuItem
 from app.models.organization import Branch, Contact, Honor, HonorCategory, Video
+from app.models.orders import Order
 from app.models.products import ContactInquiry, Product, ProductCategory
 from app.models.projects import Project, ProjectCategory, ProjectCategoryItem, ProjectProduct
 from app.models.news import NewsPost
 from app.models.taxonomy import Language, SiteSetting, Translation
+from app.models.user import User
 from app.schemas.entities import (
     BannerCreate,
     BannerRead,
@@ -74,6 +76,7 @@ from app.schemas.entities import (
     VideoUpdate,
 )
 from app.schemas.news import NewsPostCreate, NewsPostRead, NewsPostUpdate
+from app.schemas.orders import OrderAdminWriteRequest, OrderRead
 from app.schemas.products import (
     InquiryCreate,
     InquiryRead,
@@ -85,6 +88,7 @@ from app.schemas.products import (
     ProductRead,
     ProductUpdate,
 )
+from app.schemas.user import UserCreate, UserRead, UserUpdate
 
 
 @dataclass(frozen=True)
@@ -150,6 +154,8 @@ ENTITY_REGISTRY: dict[str, EntityRegistration] = {
         ProductCategoryUpdate,
     ),
     "products": EntityRegistration(Product, ProductRead, ProductCreate, ProductUpdate),
+    # ─── Orders ───────────────────────────────────────────────────────────────
+    "orders": EntityRegistration(Order, OrderRead, OrderAdminWriteRequest, OrderAdminWriteRequest),
     # ─── Inquiries ────────────────────────────────────────────────────────────
     "inquiry_submissions": EntityRegistration(
         ContactInquiry,
@@ -157,6 +163,8 @@ ENTITY_REGISTRY: dict[str, EntityRegistration] = {
         InquiryCreate,
         InquiryUpdate,
     ),
+    # ─── User Accounts ────────────────────────────────────────────────────────
+    "users": EntityRegistration(User, UserRead, UserCreate, UserUpdate),
     # ─── News ─────────────────────────────────────────────────────────────────
     "news_posts": EntityRegistration(NewsPost, NewsPostRead, NewsPostCreate, NewsPostUpdate),
 }

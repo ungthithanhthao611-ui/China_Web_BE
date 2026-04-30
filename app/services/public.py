@@ -15,6 +15,7 @@ from app.schemas.products import InquiryCreate, ProductCategoryNodeRead, Product
 from app.schemas.projects import ProjectCasePageRead
 from app.models.taxonomy import Language, SiteSetting
 from app.services.honors import list_public_honors
+from app.services.product_pricing import decorate_product_pricing_payload
 from app.schemas.entities import (
     BannerRead,
     BranchRead,
@@ -681,6 +682,9 @@ def list_product_categories(db: Session, language_code: str = "en") -> dict[str,
     }
 
 
+
+
+
 def list_products(
     db: Session,
     category_slug: str | None,
@@ -737,12 +741,12 @@ def list_products(
         ]
 
         data = ProductListItemRead.model_validate(translated_product).model_dump(mode="json")
+        data = decorate_product_pricing_payload(data, product)
         if product.category:
             translated_cat = _translate_item(product.category, language_code)
             data["category_name"] = translated_cat.name
         else:
             data["category_name"] = None
-            
         data["images"] = related_images
         data["gallery_urls"] = "\n".join(image["url"] for image in related_images)
         payload.append(data)
@@ -784,6 +788,7 @@ def get_product_detail(db: Session, slug: str, language_code: str = "en") -> dic
     ]
 
     data = ProductRead.model_validate(translated_product).model_dump(mode="json")
+    data = decorate_product_pricing_payload(data, product)
     if not str(data.get("video_url") or "").strip():
         linked_video_url = _get_linked_product_video_url(db=db, product_id=product.id)
         if linked_video_url:
@@ -794,7 +799,7 @@ def get_product_detail(db: Session, slug: str, language_code: str = "en") -> dic
         data["category_name"] = translated_cat.name
     else:
         data["category_name"] = None
-        
+
     data["images"] = related_images
     data["gallery_urls"] = "\n".join(image["url"] for image in related_images)
 
@@ -821,6 +826,7 @@ def get_product_detail(db: Session, slug: str, language_code: str = "en") -> dic
             ]
 
             rel_data = ProductListItemRead.model_validate(translated_rel).model_dump(mode="json")
+            rel_data = decorate_product_pricing_payload(rel_data, rel)
             rel_data["images"] = rel_related_images
             rel_data["gallery_urls"] = "\n".join(image["url"] for image in rel_related_images)
             related.append(rel_data)

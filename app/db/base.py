@@ -1,8 +1,9 @@
 from app.models.admin import AdminUser
-from app.models.user import User
+from app.models.user import User, UserLoginHistory
 from app.models.content import Banner, ContentBlock, ContentBlockItem, Page, PageSection
 from app.models.media import EntityMedia, MediaAsset
 from app.models.navigation import Menu, MenuItem
+from app.models.orders import Order, OrderItem
 from app.models.organization import Branch, Contact, Honor, HonorCategory, Video
 from app.models.products import Cart, CartItem, ContactInquiry, Product, ProductCategory, ProductImage
 from app.models.projects import Project, ProjectCategory, ProjectCategoryItem, ProjectProduct
@@ -27,6 +28,8 @@ __all__ = [
     "Menu",
     "MenuItem",
     "NewsPost",
+    "Order",
+    "OrderItem",
     "Page",
     "PageSection",
     "Product",
@@ -39,5 +42,6 @@ __all__ = [
     "SiteSetting",
     "Translation",
     "User",
+    "UserLoginHistory",
     "Video",
 ]

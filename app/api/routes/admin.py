@@ -142,6 +142,7 @@ def list_entity(
     block_key: str | None = Query(default=None),
     completeness: str | None = Query(default=None),
     media_state: str | None = Query(default=None),
+    stock_state: str | None = Query(default=None),
 ) -> dict[str, Any]:
     return list_entity_records(
         db=db,
@@ -156,6 +157,7 @@ def list_entity(
         block_key=block_key,
         completeness=completeness,
         media_state=media_state,
+        stock_state=stock_state,
     )
 
 

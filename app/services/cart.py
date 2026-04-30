@@ -22,30 +22,46 @@ def get_or_create_cart(db: Session, user_id: int) -> Cart:
 
 def add_item_to_cart(db: Session, user_id: int, payload: CartItemCreate) -> Cart:
     cart = get_or_create_cart(db, user_id)
-    
+
     # Check if product exists
     product = db.get(Product, payload.product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
+    stock_quantity = max(0, int(getattr(product, "stock_quantity", 0) or 0))
+    if stock_quantity <= 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Sản phẩm hiện đã hết hàng")
+
+    requested_quantity = max(1, int(payload.quantity or 1))
+
     # Check if item already in cart
     item = db.scalar(
         select(CartItem).where(
-            CartItem.cart_id == cart.id, 
+            CartItem.cart_id == cart.id,
             CartItem.product_id == payload.product_id
         )
     )
-    
+
+    next_quantity = requested_quantity
     if item:
-        item.quantity += payload.quantity
+        next_quantity = int(item.quantity or 0) + requested_quantity
+
+    if next_quantity > stock_quantity:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Chỉ còn {stock_quantity} sản phẩm trong kho"
+        )
+
+    if item:
+        item.quantity = next_quantity
     else:
         item = CartItem(
             cart_id=cart.id,
             product_id=payload.product_id,
-            quantity=payload.quantity
+            quantity=requested_quantity
         )
         db.add(item)
-    
+
     db.commit()
     db.refresh(cart)
     return cart
@@ -61,7 +77,22 @@ def update_cart_item(db: Session, user_id: int, item_id: int, payload: CartItemU
     if payload.quantity <= 0:
         db.delete(item)
     else:
-        item.quantity = payload.quantity
+        product = db.get(Product, item.product_id)
+        if not product:
+            raise HTTPException(status_code=404, detail="Product not found")
+
+        stock_quantity = max(0, int(getattr(product, "stock_quantity", 0) or 0))
+        if stock_quantity <= 0:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Sản phẩm hiện đã hết hàng")
+
+        next_quantity = max(1, int(payload.quantity or 1))
+        if next_quantity > stock_quantity:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Chỉ còn {stock_quantity} sản phẩm trong kho"
+            )
+
+        item.quantity = next_quantity
     
     db.commit()
     db.refresh(cart)

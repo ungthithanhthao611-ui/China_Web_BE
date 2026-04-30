@@ -23,6 +23,12 @@ class ProductShort(BaseModel):
     slug: str
     image_url: str | None = None
     price: float | None = 0.0
+    original_price: float | None = 0.0
+    sale_price: float | None = 0.0
+    effective_price: float | None = 0.0
+    has_sale_price: bool = False
+    stock_quantity: int = 0
+    in_stock: bool = False
     images: list[ProductImageRead] = []
 
     class Config:

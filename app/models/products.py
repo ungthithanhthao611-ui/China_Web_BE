@@ -39,41 +39,44 @@ class Product(BigIntPrimaryKeyMixin, TimestampMixin, SortOrderMixin, Base):
         ForeignKey("product_categories.id", ondelete="SET NULL"), index=True
     )
     sku: Mapped[str | None] = mapped_column(String(100), unique=True, index=True)
-    
+
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     name_en: Mapped[str | None] = mapped_column(String(255))
     name_zh: Mapped[str | None] = mapped_column(String(255))
-    
+
     slug: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
-    
+
     short_desc: Mapped[str | None] = mapped_column(Text)
     short_desc_en: Mapped[str | None] = mapped_column(Text)
     short_desc_zh: Mapped[str | None] = mapped_column(Text)
-    
+
     full_desc: Mapped[str | None] = mapped_column(Text)
     full_desc_en: Mapped[str | None] = mapped_column(Text)
     full_desc_zh: Mapped[str | None] = mapped_column(Text)
-    
+
     size: Mapped[str | None] = mapped_column(String(255))
     size_en: Mapped[str | None] = mapped_column(String(255))
     size_zh: Mapped[str | None] = mapped_column(String(255))
-    
+
     material: Mapped[str | None] = mapped_column(String(255))
     material_en: Mapped[str | None] = mapped_column(String(255))
     material_zh: Mapped[str | None] = mapped_column(String(255))
-    
+
     color: Mapped[str | None] = mapped_column(Text)
     color_en: Mapped[str | None] = mapped_column(Text)
     color_zh: Mapped[str | None] = mapped_column(Text)
-    
+
     use_case: Mapped[str | None] = mapped_column(Text)
     use_case_en: Mapped[str | None] = mapped_column(Text)
     use_case_zh: Mapped[str | None] = mapped_column(Text)
-    
+
     video_url: Mapped[str | None] = mapped_column(String(2000))
     catalog_pdf_url: Mapped[str | None] = mapped_column(String(2000))
     image_url: Mapped[str | None] = mapped_column(String(1000))
     price: Mapped[float | None] = mapped_column(default=0.0)
+    original_price: Mapped[float | None] = mapped_column(default=0.0)
+    sale_price: Mapped[float | None] = mapped_column(default=0.0)
+    stock_quantity: Mapped[int] = mapped_column(default=0, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     category = relationship("ProductCategory", back_populates="products")

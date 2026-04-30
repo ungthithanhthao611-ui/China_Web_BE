@@ -30,11 +30,24 @@ def ensure_user_schema() -> None:
         columns_to_add = [
             ("phone", "VARCHAR(20)"),
             ("address", "VARCHAR(500)"),
+            ("avatar_url", "VARCHAR(1000)"),
+            ("role", "VARCHAR(50) DEFAULT 'user'"),
         ]
 
         for column_name, column_type in columns_to_add:
             if column_name not in column_names:
                 conn.execute(text(f"ALTER TABLE users ADD COLUMN {column_name} {column_type}"))
+
+        refreshed_inspector = inspect(conn)
+        refreshed_columns = {column["name"] for column in refreshed_inspector.get_columns("users")}
+        if "role" in refreshed_columns:
+            conn.execute(text("UPDATE users SET role = 'user' WHERE role IS NULL OR trim(role) = ''"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_users_role ON users (role)"))
+
+        refreshed_table_names = set(refreshed_inspector.get_table_names())
+        if "user_login_history" in refreshed_table_names:
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_user_login_history_user_id ON user_login_history (user_id)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_user_login_history_login_at ON user_login_history (login_at)"))
 
 
 def initialize_database() -> None:
@@ -47,6 +60,7 @@ def initialize_database() -> None:
     ensure_project_products_schema()
     ensure_inquiry_schema()
     ensure_product_schema()
+    ensure_order_schema()
     ensure_video_schema()
     with SessionLocal() as session:
         seed_basics(session)
@@ -96,12 +110,12 @@ def ensure_product_schema() -> None:
         # Products table
         if "products" in table_names:
             columns = {column["name"]: column for column in inspector.get_columns("products")}
-            
+
             # Fix color column type if needed
             color_column = columns.get("color")
             if color_column and str(color_column.get("type", "")).lower().startswith("character varying"):
                 conn.execute(text("ALTER TABLE products ALTER COLUMN color TYPE TEXT"))
-            
+
             # Add localized columns and price
             product_cols = [
                 ("name_en", "VARCHAR(255)"), ("name_zh", "VARCHAR(255)"),
@@ -112,10 +126,36 @@ def ensure_product_schema() -> None:
                 ("color_en", "TEXT"), ("color_zh", "TEXT"),
                 ("use_case_en", "TEXT"), ("use_case_zh", "TEXT"),
                 ("price", "DOUBLE PRECISION DEFAULT 0.0"),
+                ("original_price", "DOUBLE PRECISION DEFAULT 0.0"),
+                ("sale_price", "DOUBLE PRECISION DEFAULT 0.0"),
+                ("stock_quantity", "INTEGER DEFAULT 0"),
             ]
             for col_name, col_type in product_cols:
                 if col_name not in columns:
                     conn.execute(text(f"ALTER TABLE products ADD COLUMN {col_name} {col_type}"))
+
+            refreshed_columns = {column["name"] for column in inspect(conn).get_columns("products")}
+            if "original_price" in refreshed_columns:
+                conn.execute(
+                    text(
+                        "UPDATE products "
+                        "SET original_price = COALESCE(NULLIF(original_price, 0), price, 0)"
+                    )
+                )
+            if "sale_price" in refreshed_columns:
+                conn.execute(text("UPDATE products SET sale_price = COALESCE(sale_price, 0)"))
+            if "price" in refreshed_columns:
+                conn.execute(
+                    text(
+                        "UPDATE products "
+                        "SET price = CASE "
+                        "WHEN COALESCE(sale_price, 0) > 0 THEN sale_price "
+                        "WHEN COALESCE(original_price, 0) > 0 THEN original_price "
+                        "ELSE COALESCE(price, 0) END"
+                    )
+                )
+            if "stock_quantity" in refreshed_columns:
+                conn.execute(text("UPDATE products SET stock_quantity = COALESCE(stock_quantity, 0)"))
 
         # Product Categories table
         if "product_categories" in table_names:
@@ -127,6 +167,86 @@ def ensure_product_schema() -> None:
             for col_name, col_type in category_cols:
                 if col_name not in columns:
                     conn.execute(text(f"ALTER TABLE product_categories ADD COLUMN {col_name} {col_type}"))
+
+
+def ensure_order_schema() -> None:
+    with engine.begin() as conn:
+        inspector = inspect(conn)
+        table_names = set(inspector.get_table_names())
+
+        if "orders" in table_names:
+            columns = {column["name"] for column in inspector.get_columns("orders")}
+            order_columns = [
+                ("status", "VARCHAR(50) DEFAULT 'pending_confirmation'"),
+                ("payment_method", "VARCHAR(50) DEFAULT 'cod'"),
+                ("payment_status", "VARCHAR(50) DEFAULT 'unpaid'"),
+                ("client_request_id", "VARCHAR(100)"),
+                ("customer_name", "VARCHAR(255)"),
+                ("customer_phone", "VARCHAR(50)"),
+                ("customer_email", "VARCHAR(255)"),
+                ("shipping_address", "TEXT"),
+                ("note", "TEXT"),
+                ("subtotal_amount", "DOUBLE PRECISION DEFAULT 0.0"),
+                ("shipping_fee", "DOUBLE PRECISION DEFAULT 0.0"),
+                ("discount_amount", "DOUBLE PRECISION DEFAULT 0.0"),
+                ("total_amount", "DOUBLE PRECISION DEFAULT 0.0"),
+                ("currency", "VARCHAR(10) DEFAULT 'VND'"),
+                ("placed_at", "TIMESTAMP WITH TIME ZONE DEFAULT NOW()"),
+            ]
+            for column_name, column_type in order_columns:
+                if column_name not in columns:
+                    conn.execute(text(f"ALTER TABLE orders ADD COLUMN {column_name} {column_type}"))
+
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_orders_user_id ON orders (user_id)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_orders_code ON orders (code)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_orders_status ON orders (status)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_orders_payment_method ON orders (payment_method)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_orders_payment_status ON orders (payment_status)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_orders_client_request_id ON orders (client_request_id)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_orders_placed_at ON orders (placed_at)"))
+
+        if "order_items" in table_names:
+            columns = {column["name"] for column in inspector.get_columns("order_items")}
+            order_item_columns = [
+                ("product_slug", "VARCHAR(255)"),
+                ("product_sku", "VARCHAR(100)"),
+                ("product_image_url", "VARCHAR(2000)"),
+                ("original_unit_price", "DOUBLE PRECISION DEFAULT 0.0"),
+                ("sale_unit_price", "DOUBLE PRECISION DEFAULT 0.0"),
+                ("unit_price", "DOUBLE PRECISION DEFAULT 0.0"),
+                ("quantity", "INTEGER DEFAULT 1"),
+                ("line_total", "DOUBLE PRECISION DEFAULT 0.0"),
+            ]
+            for column_name, column_type in order_item_columns:
+                if column_name not in columns:
+                    conn.execute(text(f"ALTER TABLE order_items ADD COLUMN {column_name} {column_type}"))
+
+            refreshed_columns = {column["name"] for column in inspect(conn).get_columns("order_items")}
+            if "original_unit_price" in refreshed_columns:
+                conn.execute(
+                    text(
+                        "UPDATE order_items "
+                        "SET original_unit_price = COALESCE(NULLIF(original_unit_price, 0), unit_price, 0)"
+                    )
+                )
+            if "sale_unit_price" in refreshed_columns:
+                conn.execute(
+                    text(
+                        "UPDATE order_items "
+                        "SET sale_unit_price = COALESCE(sale_unit_price, unit_price, 0)"
+                    )
+                )
+            if "line_total" in refreshed_columns:
+                conn.execute(
+                    text(
+                        "UPDATE order_items "
+                        "SET line_total = COALESCE(NULLIF(line_total, 0), COALESCE(unit_price, 0) * COALESCE(quantity, 0), 0)"
+                    )
+                )
+
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_order_items_order_id ON order_items (order_id)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_order_items_product_id ON order_items (product_id)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_order_items_product_slug ON order_items (product_slug)"))
 
 
 def ensure_video_schema() -> None:
