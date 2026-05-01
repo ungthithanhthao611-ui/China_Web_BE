@@ -27,7 +27,7 @@ def _normalize_params(params: dict[str, object]) -> dict[str, str]:
 
 
 def _build_hash_payload(params: dict[str, str]) -> str:
-  return urlencode(params)
+  return '&'.join(f'{key}={value}' for key, value in params.items())
 
 
 def _strip_accents(value: str) -> str:

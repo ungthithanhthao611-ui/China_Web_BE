@@ -24,8 +24,18 @@ class Settings(BaseSettings):
     debug: bool = True
     api_v1_prefix: str = "/api/v1"
     database_url: str = f"sqlite:///{DEFAULT_SQLITE_DB_PATH.as_posix()}"
-    allowed_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173", "http://127.0.0.1:5173"])
-    trusted_hosts: list[str] = Field(default_factory=lambda: ["localhost", "127.0.0.1"])
+    allowed_origins: list[str] = Field(default_factory=lambda: [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "https://thiendong.vercel.app",
+        "https://www.thiendong.vercel.app",
+    ])
+    trusted_hosts: list[str] = Field(default_factory=lambda: [
+        "localhost",
+        "127.0.0.1",
+        "china-web-be.onrender.com",
+        "*.onrender.com",
+    ])
     docs_enabled: bool = True
     upload_dir: str = str(DEFAULT_UPLOAD_DIR)
     upload_url_prefix: str = "/uploads"
