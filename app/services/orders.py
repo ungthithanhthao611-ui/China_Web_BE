@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
@@ -19,10 +19,11 @@ from app.schemas.orders import (
   OrderRead,
 )
 from app.services.product_pricing import resolve_order_item_price_snapshot
+from app.services.vnpay import normalize_vnpay_txn_ref
 
 logger = logging.getLogger(__name__)
 
-ALLOWED_PAYMENT_METHODS = {'cod', 'bank_transfer'}
+ALLOWED_PAYMENT_METHODS = {'cod', 'bank_transfer', 'vnpay'}
 ORDER_STATUS_OPTIONS = (
   'pending_confirmation',
   'confirmed',
@@ -31,7 +32,7 @@ ORDER_STATUS_OPTIONS = (
   'delivered',
   'cancelled',
 )
-PAYMENT_STATUS_OPTIONS = ('unpaid', 'paid', 'refunded')
+PAYMENT_STATUS_OPTIONS = ('unpaid', 'pending', 'paid', 'failed', 'refunded')
 ORDER_STATUS_LABELS = {
   'pending_confirmation': 'Chờ xác nhận',
   'confirmed': 'Đã xác nhận',
@@ -42,12 +43,15 @@ ORDER_STATUS_LABELS = {
 }
 PAYMENT_STATUS_LABELS = {
   'unpaid': 'Chưa thanh toán',
+  'pending': 'Đang chờ thanh toán',
   'paid': 'Đã thanh toán',
+  'failed': 'Thanh toán thất bại',
   'refunded': 'Đã hoàn tiền',
 }
 PAYMENT_METHOD_LABELS = {
   'cod': 'Thanh toán khi nhận hàng',
   'bank_transfer': 'Chuyển khoản ngân hàng',
+  'vnpay': 'Thanh toán qua VNPAY',
 }
 ALLOWED_ORDER_STATUS_TRANSITIONS = {
   'pending_confirmation': {'confirmed', 'cancelled'},
@@ -97,8 +101,8 @@ def _serialize_order(order: Order) -> OrderRead:
 
 
 def _generate_order_code(user_id: int) -> str:
-  timestamp = datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')
-  return f'ORD-{user_id}-{timestamp}'
+  timestamp = datetime.now(timezone(timedelta(hours=7))).strftime('%Y%m%d%H%M%S')
+  return normalize_vnpay_txn_ref(f'ORD{user_id}{timestamp}') or f'ORD{user_id}{timestamp}'
 
 
 def _get_cart_with_items(db: Session, user_id: int) -> Cart | None:
@@ -123,6 +127,47 @@ def _get_existing_order_by_request_id(db: Session, client_request_id: str) -> Or
     .where(Order.client_request_id == client_request_id)
     .options(selectinload(Order.items)),
   )
+
+
+def get_user_order_by_id(db: Session, user_id: int, order_id: int) -> Order | None:
+  return db.scalar(
+    select(Order)
+    .where(Order.id == order_id, Order.user_id == user_id)
+    .options(selectinload(Order.items)),
+  )
+
+
+def get_order_by_code(db: Session, code: str) -> Order | None:
+  normalized_code = normalize_vnpay_txn_ref(code)
+  if not normalized_code:
+    return None
+
+  return db.scalar(
+    select(Order)
+    .where(Order.code == normalized_code)
+    .options(selectinload(Order.items)),
+  )
+
+
+def _get_locked_products_by_ids(db: Session, product_ids: list[int]) -> dict[int, Product]:
+  if not product_ids:
+    return {}
+
+  locked_products = db.scalars(
+    select(Product)
+    .where(Product.id.in_(product_ids))
+    .with_for_update(),
+  ).all()
+  return {product.id: product for product in locked_products}
+
+
+def _clear_user_cart_items(db: Session, user_id: int) -> None:
+  cart = _get_cart_with_items(db, user_id)
+  if not cart:
+    return
+
+  for item in list(cart.items or []):
+    db.delete(item)
 
 
 def _validate_order_status_transition(current_status: str, next_status: str) -> None:
@@ -192,22 +237,18 @@ def create_order_from_cart(db: Session, user: User, payload: OrderCreateRequest)
       )
 
     product_ids = sorted({item.product_id for item in cart_items if item.product_id})
-    locked_products = db.scalars(
-      select(Product)
-      .where(Product.id.in_(product_ids))
-      .with_for_update(),
-    ).all() if product_ids else []
-    product_by_id = {product.id: product for product in locked_products}
+    product_by_id = _get_locked_products_by_ids(db, product_ids)
 
     subtotal_amount = 0.0
     has_valid_items = False
+    initial_payment_status = 'pending' if payment_method == 'vnpay' else 'unpaid'
     order = Order(
       user_id=user.id,
       code=_generate_order_code(user.id),
       client_request_id=client_request_id,
       status='pending_confirmation',
       payment_method=payment_method,
-      payment_status='unpaid',
+      payment_status=initial_payment_status,
       customer_name=customer_name,
       customer_phone=customer_phone,
       customer_email=customer_email,
@@ -263,7 +304,8 @@ def create_order_from_cart(db: Session, user: User, payload: OrderCreateRequest)
         line_total=line_total,
       )
       db.add(order_item)
-      product.stock_quantity = max(0, stock_quantity - quantity)
+      if payment_method != 'vnpay':
+        product.stock_quantity = max(0, stock_quantity - quantity)
 
     if subtotal_amount <= 0 and not has_valid_items:
       raise HTTPException(
@@ -274,14 +316,10 @@ def create_order_from_cart(db: Session, user: User, payload: OrderCreateRequest)
     order.subtotal_amount = subtotal_amount
     order.total_amount = round(subtotal_amount + order.shipping_fee - order.discount_amount, 2)
 
-    if payment_method != 'cod' and order.payment_status != 'paid':
-      raise HTTPException(
-        status_code=status.HTTP_409_CONFLICT,
-        detail='Thanh toán chưa hoàn tất nên đơn hàng chưa được xác nhận. Hệ thống đã khôi phục giỏ hàng ban đầu.',
-      )
-
-    for cart_item in cart_items:
-      db.delete(cart_item)
+    should_finalize_inventory = payment_method != 'vnpay'
+    if should_finalize_inventory:
+      for cart_item in cart_items:
+        db.delete(cart_item)
 
     db.commit()
 
@@ -437,4 +475,116 @@ def update_order_admin(db: Session, order_id: int, payload: OrderAdminWriteReque
       detail='Không thể tải lại đơn hàng sau khi cập nhật.',
     )
 
+  return _serialize_order(refreshed_order)
+
+
+def finalize_vnpay_order_payment(db: Session, order: Order) -> OrderRead:
+  if _normalize_text(order.payment_method).lower() != 'vnpay':
+    raise HTTPException(
+      status_code=status.HTTP_400_BAD_REQUEST,
+      detail='Đơn hàng này không sử dụng thanh toán VNPAY.',
+    )
+
+  if order.payment_status == 'paid':
+    refreshed_order = _get_order_with_items(db, order.id)
+    if not refreshed_order:
+      raise HTTPException(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        detail='Không thể tải lại đơn hàng đã thanh toán.',
+      )
+    return _serialize_order(refreshed_order)
+
+  try:
+    product_ids = sorted({item.product_id for item in (order.items or []) if item.product_id})
+    product_by_id = _get_locked_products_by_ids(db, product_ids)
+
+    for order_item in order.items or []:
+      if not order_item.product_id:
+        continue
+
+      product = product_by_id.get(order_item.product_id)
+      if not product:
+        raise HTTPException(
+          status_code=status.HTTP_409_CONFLICT,
+          detail=f'Sản phẩm "{order_item.product_name}" không còn tồn tại để hoàn tất thanh toán.',
+        )
+
+      stock_quantity = max(0, int(getattr(product, 'stock_quantity', 0) or 0))
+      quantity = max(0, int(order_item.quantity or 0))
+      if quantity <= 0:
+        continue
+      if stock_quantity < quantity:
+        raise HTTPException(
+          status_code=status.HTTP_409_CONFLICT,
+          detail=f'Sản phẩm "{order_item.product_name}" không đủ tồn kho để hoàn tất thanh toán VNPAY.',
+        )
+
+      product.stock_quantity = stock_quantity - quantity
+
+    _clear_user_cart_items(db, order.user_id)
+    order.payment_status = 'paid'
+    db.add(order)
+    db.commit()
+  except HTTPException:
+    db.rollback()
+    raise
+  except Exception as exc:
+    db.rollback()
+    logger.exception('Finalize VNPAY payment failed for order_id=%s code=%s', order.id, order.code)
+    detail = 'Không thể hoàn tất cập nhật thanh toán VNPAY.'
+    if settings.debug:
+      detail = f'{detail} Chi tiết kỹ thuật: {exc}'
+    raise HTTPException(
+      status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+      detail=detail,
+    ) from exc
+
+  refreshed_order = _get_order_with_items(db, order.id)
+  if not refreshed_order:
+    raise HTTPException(
+      status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+      detail='Không thể tải lại đơn hàng sau khi xác nhận thanh toán VNPAY.',
+    )
+  return _serialize_order(refreshed_order)
+
+
+def cancel_vnpay_order_payment(db: Session, order: Order) -> OrderRead:
+  if _normalize_text(order.payment_method).lower() != 'vnpay':
+    raise HTTPException(
+      status_code=status.HTTP_400_BAD_REQUEST,
+      detail='Đơn hàng này không sử dụng thanh toán VNPAY.',
+    )
+
+  if order.payment_status == 'paid':
+    refreshed_order = _get_order_with_items(db, order.id)
+    if not refreshed_order:
+      raise HTTPException(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        detail='Không thể tải lại đơn hàng đã thanh toán.',
+      )
+    return _serialize_order(refreshed_order)
+
+  try:
+    order.payment_status = 'failed'
+    if order.status != 'cancelled':
+      order.status = 'cancelled'
+    db.add(order)
+    db.commit()
+  except Exception as exc:
+    db.rollback()
+    logger.exception('Cancel VNPAY payment failed for order_id=%s code=%s', order.id, order.code)
+    detail = 'Không thể hủy giao dịch thanh toán VNPAY.'
+    if settings.debug:
+      detail = f'{detail} Chi tiết kỹ thuật: {exc}'
+    raise HTTPException(
+      status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+      detail=detail,
+    ) from exc
+
+  refreshed_order = _get_order_with_items(db, order.id)
+  if not refreshed_order:
+    raise HTTPException(
+      status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+      detail='Không thể tải lại đơn hàng sau khi hủy giao dịch VNPAY.',
+    )
   return _serialize_order(refreshed_order)

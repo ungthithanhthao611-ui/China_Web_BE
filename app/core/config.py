@@ -57,6 +57,15 @@ class Settings(BaseSettings):
     initial_admin_username: str = "admin"
     initial_admin_password: str = "admin123456"
     log_level: str = "INFO"
+    vnpay_tmn_code: str = ""
+    vnpay_hash_secret: str = ""
+    vnpay_payment_url: str = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"
+    vnpay_return_url: str = ""
+    vnpay_ipn_url: str = ""
+    vnpay_version: str = "2.1.0"
+    vnpay_command: str = "pay"
+    vnpay_curr_code: str = "VND"
+    vnpay_locale: str = "vn"
 
     @property
     def is_production(self) -> bool:
