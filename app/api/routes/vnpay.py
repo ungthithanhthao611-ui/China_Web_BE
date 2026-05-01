@@ -74,7 +74,7 @@ def verify_vnpay_return(
   db: Session = Depends(get_db),
 ) -> VnpayReturnResponse:
   query_params = {key: value for key, value in request.query_params.items()}
-  is_valid = verify_response_params(query_params)
+  is_valid = verify_response_params(query_params, context='return')
   txn_ref = str(query_params.get('vnp_TxnRef', '') or '').strip()
   response_code = str(query_params.get('vnp_ResponseCode', '') or '').strip()
   order = get_order_by_code(db=db, code=txn_ref) if txn_ref else None
@@ -107,7 +107,7 @@ def handle_vnpay_ipn(
   db: Session = Depends(get_db),
 ) -> dict[str, str]:
   query_params = {key: value for key, value in request.query_params.items()}
-  if not verify_response_params(query_params):
+  if not verify_response_params(query_params, context='ipn'):
     return {'RspCode': '97', 'Message': 'Invalid checksum'}
 
   txn_ref = str(query_params.get('vnp_TxnRef', '') or '').strip()

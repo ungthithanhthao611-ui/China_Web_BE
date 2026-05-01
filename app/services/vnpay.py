@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import logging
 import re
 import unicodedata
 from datetime import datetime, timedelta, timezone
@@ -11,6 +12,8 @@ from urllib.parse import urlencode
 from fastapi import HTTPException, Request, status
 
 from app.core.config import get_settings
+
+logger = logging.getLogger(__name__)
 
 
 def _runtime_settings():
@@ -27,7 +30,54 @@ def _normalize_params(params: dict[str, object]) -> dict[str, str]:
 
 
 def _build_hash_payload(params: dict[str, str]) -> str:
-  return '&'.join(f'{key}={value}' for key, value in params.items())
+  return urlencode(params)
+
+
+def _mask_value(value: str, *, keep_start: int = 4, keep_end: int = 4) -> str:
+  normalized = str(value or '')
+  if len(normalized) <= keep_start + keep_end:
+    return normalized or '-'
+  return f'{normalized[:keep_start]}***{normalized[-keep_end:]}'
+
+
+def _sanitize_params_for_log(params: dict[str, object]) -> dict[str, str]:
+  normalized = _normalize_params(params)
+  masked_params = dict(normalized)
+  if 'vnp_SecureHash' in masked_params:
+    masked_params['vnp_SecureHash'] = _mask_value(masked_params['vnp_SecureHash'], keep_start=8, keep_end=8)
+  return masked_params
+
+
+def _log_vnpay_signature_debug(
+  *,
+  context: str,
+  params: dict[str, object],
+  received_hash: str | None = None,
+  expected_hash: str | None = None,
+) -> None:
+  runtime_settings = _runtime_settings()
+  normalized_params = _normalize_params(params)
+  payload = _build_hash_payload(normalized_params)
+  logger.info(
+    'VNPAY debug [%s] tmn=%s payment_url=%s return_url=%s txn_ref=%s ip=%s payload=%s params=%s received_hash=%s expected_hash=%s secret=%s',
+    context,
+    runtime_settings.vnpay_tmn_code or '-',
+    runtime_settings.vnpay_payment_url or '-',
+    runtime_settings.vnpay_return_url or '-',
+    normalized_params.get('vnp_TxnRef', '-'),
+    normalized_params.get('vnp_IpAddr', '-'),
+    payload,
+    _sanitize_params_for_log(normalized_params),
+    _mask_value(received_hash or '', keep_start=8, keep_end=8),
+    _mask_value(expected_hash or '', keep_start=8, keep_end=8),
+    _mask_value(runtime_settings.vnpay_hash_secret, keep_start=4, keep_end=4),
+  )
+
+
+def _create_normalized_signed_params(params: dict[str, object]) -> dict[str, str]:
+  normalized_params = _normalize_params(params)
+  normalized_params['vnp_SecureHash'] = create_secure_hash(normalized_params)
+  return normalized_params
 
 
 def _strip_accents(value: str) -> str:
@@ -58,8 +108,15 @@ def _validate_vnpay_settings() -> None:
   if not runtime_settings.vnpay_return_url:
     missing_keys.append('VNPAY_RETURN_URL')
 
-
   if missing_keys:
+    logger.error(
+      'VNPAY config missing keys=%s payment_url=%s return_url=%s tmn=%s secret=%s',
+      missing_keys,
+      runtime_settings.vnpay_payment_url or '-',
+      runtime_settings.vnpay_return_url or '-',
+      runtime_settings.vnpay_tmn_code or '-',
+      _mask_value(runtime_settings.vnpay_hash_secret, keep_start=4, keep_end=4),
+    )
     raise HTTPException(
       status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
       detail=f'Thiếu cấu hình VNPAY bắt buộc: {", ".join(missing_keys)}.',
@@ -108,19 +165,34 @@ def build_payment_url(*, txn_ref: str, amount: float, order_info: str, client_ip
     'vnp_ExpireDate': expire_date,
   }
 
-  normalized_params = _normalize_params(params)
-  normalized_params['vnp_SecureHash'] = create_secure_hash(normalized_params)
-  return f"{runtime_settings.vnpay_payment_url}?{urlencode(normalized_params)}"
+  signed_params = _create_normalized_signed_params(params)
+  _log_vnpay_signature_debug(
+    context='create_payment_url',
+    params=signed_params,
+    expected_hash=signed_params.get('vnp_SecureHash'),
+  )
+  return f"{runtime_settings.vnpay_payment_url}?{urlencode(signed_params)}"
 
 
-def verify_response_params(query_params: dict[str, str]) -> bool:
+def verify_response_params(query_params: dict[str, str], *, context: str = 'verify_response') -> bool:
   payload = dict(query_params)
   received_hash = str(payload.pop('vnp_SecureHash', '') or '')
   payload.pop('vnp_SecureHashType', None)
   if not received_hash:
+    logger.warning('VNPAY verify failed [%s] because received hash is empty. params=%s', context, _sanitize_params_for_log(payload))
     return False
+
   expected_hash = create_secure_hash(payload)
-  return hmac.compare_digest(received_hash, expected_hash)
+  is_valid = hmac.compare_digest(received_hash, expected_hash)
+  _log_vnpay_signature_debug(
+    context=context,
+    params=payload,
+    received_hash=received_hash,
+    expected_hash=expected_hash,
+  )
+  if not is_valid:
+    logger.warning('VNPAY checksum mismatch [%s] txn_ref=%s', context, payload.get('vnp_TxnRef', '-'))
+  return is_valid
 
 
 def resolve_client_ip(request: Request) -> str:
