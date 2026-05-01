@@ -10,6 +10,7 @@ from app.core.config import settings
 from app.core.security import hash_password
 from app.models.content import Banner, ContentBlock, ContentBlockItem, Page, PageSection
 from app.models.media import MediaAsset
+from app.models.orders import Order
 from app.models.organization import Video
 from app.models.products import Product, ProductCategory, ProductImage
 from app.models.projects import Project, ProjectCategory, ProjectCategoryItem, ProjectProduct
@@ -17,6 +18,11 @@ from app.models.user import User, UserLoginHistory
 from app.schemas.user import UserLoginHistoryRead
 from app.services.media import delete_media_asset_record
 from app.services.catalog import ENTITY_REGISTRY, EntityRegistration
+from app.services.orders import (
+    _payment_method_label,
+    _payment_status_label,
+    _status_label,
+)
 from app.services.product_pricing import (
     decorate_product_pricing_payload,
     normalize_product_pricing_input,
@@ -188,6 +194,9 @@ def _base_query_for_model(model: type):
             selectinload(ProjectProduct.product),
         )
 
+    if model is Order:
+        return query.options(selectinload(Order.items))
+
     if model is User:
         return query.options(selectinload(User.login_history))
 
@@ -229,6 +238,12 @@ def serialize(db: Session, record: Any, registration: EntityRegistration) -> dic
     if isinstance(record, ProjectProduct):
         payload["project_name"] = record.project.title if getattr(record, "project", None) else None
         payload["product_name"] = record.product.name if getattr(record, "product", None) else None
+
+    if isinstance(record, Order):
+        payload["status_label"] = _status_label(getattr(record, "status", None))
+        payload["payment_method_label"] = _payment_method_label(getattr(record, "payment_method", None))
+        payload["payment_status_label"] = _payment_status_label(getattr(record, "payment_status", None))
+        payload["item_count"] = sum(int(getattr(item, "quantity", 0) or 0) for item in (getattr(record, "items", []) or []))
 
     if isinstance(record, User):
         history_records = sorted(

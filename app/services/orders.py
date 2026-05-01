@@ -385,6 +385,8 @@ def update_order_admin(db: Session, order_id: int, payload: OrderAdminWriteReque
     )
 
   has_changes = False
+  next_status: str | None = None
+  next_payment_status: str | None = None
 
   if payload.status is not None:
     next_status = _normalize_text(payload.status).lower()
@@ -404,6 +406,17 @@ def update_order_admin(db: Session, order_id: int, payload: OrderAdminWriteReque
     if order.payment_status != next_payment_status:
       order.payment_status = next_payment_status
       has_changes = True
+
+  is_cod_order = _normalize_text(order.payment_method).lower() == 'cod'
+  should_auto_mark_cod_paid = (
+    is_cod_order
+    and next_status == 'delivered'
+    and next_payment_status is None
+    and order.payment_status != 'paid'
+  )
+  if should_auto_mark_cod_paid:
+    order.payment_status = 'paid'
+    has_changes = True
 
   if payload.note is not None:
     normalized_note = _normalize_text(payload.note) or None
