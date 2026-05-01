@@ -813,3 +813,28 @@ def auto_translate_record(db: Session, entity_name: str, record_id: int) -> dict
     db.add(record)
     db.commit()
     return get_entity_record(db=db, entity_name=entity_name, record_id=record_id)
+
+
+def auto_translate_payload(entity_name: str, payload: dict[str, Any]) -> dict[str, Any]:
+    if entity_name not in ["products", "product_categories"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Auto-translation is not supported for entity '{entity_name}'.",
+        )
+
+    fields_map = {
+        "products": ["name", "short_desc", "full_desc", "size", "material", "color", "use_case"],
+        "product_categories": ["name", "description"],
+    }
+
+    result = dict(payload or {})
+    for field in fields_map.get(entity_name, []):
+        source_val = result.get(field)
+        if not source_val or not isinstance(source_val, str):
+            continue
+
+        for lang in ["en", "zh"]:
+            target_attr = f"{field}_{lang}"
+            result[target_attr] = smart_translate(source_val, lang)
+
+    return result

@@ -12,6 +12,7 @@ from app.schemas.admin_navigation import (
     AdminNavigationTreeReplacePayload,
 )
 from app.services.admin import (
+    auto_translate_payload,
     create_entity_record,
     delete_entity_record,
     get_admin_entity_names,
@@ -168,6 +169,14 @@ def create_entity(
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     return create_entity_record(db=db, entity_name=entity_name, payload=payload)
+
+
+@router.post("/{entity_name}/translate-preview")
+def auto_translate_entity_payload(
+    entity_name: str,
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    return auto_translate_payload(entity_name=entity_name, payload=payload)
 
 
 @router.get("/{entity_name}/{record_id}")
