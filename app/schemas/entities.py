@@ -419,8 +419,14 @@ class ContentBlockItemCreate(BaseModel):
     block_id: int
     item_key: str | None = None
     title: str | None = None
+    title_en: str | None = None
+    title_zh: str | None = None
     subtitle: str | None = None
+    subtitle_en: str | None = None
+    subtitle_zh: str | None = None
     content: str | None = None
+    content_en: str | None = None
+    content_zh: str | None = None
     link: str | None = None
     image_id: int | None = None
     metadata_json: dict[str, Any] | None = None
@@ -431,8 +437,14 @@ class ContentBlockItemUpdate(BaseModel):
     block_id: int | None = None
     item_key: str | None = None
     title: str | None = None
+    title_en: str | None = None
+    title_zh: str | None = None
     subtitle: str | None = None
+    subtitle_en: str | None = None
+    subtitle_zh: str | None = None
     content: str | None = None
+    content_en: str | None = None
+    content_zh: str | None = None
     link: str | None = None
     image_id: int | None = None
     metadata_json: dict[str, Any] | None = None
@@ -444,8 +456,14 @@ class ContentBlockItemRead(ORMModel):
     block_id: int
     item_key: str | None
     title: str | None
+    title_en: str | None = None
+    title_zh: str | None = None
     subtitle: str | None
+    subtitle_en: str | None = None
+    subtitle_zh: str | None = None
     content: str | None
+    content_en: str | None = None
+    content_zh: str | None = None
     link: str | None
     image_id: int | None
     metadata_json: dict[str, Any] | None
@@ -487,17 +505,29 @@ class ProjectCategoryRead(ORMModel):
 class ProjectCreate(BaseModel):
     category_id: int | None = None
     title: str
+    title_en: str | None = None
+    title_zh: str | None = None
     slug: str
     summary: str | None = None
+    summary_en: str | None = None
+    summary_zh: str | None = None
     body: str | None = None
+    body_en: str | None = None
+    body_zh: str | None = None
     location: str | None = None
+    location_en: str | None = None
+    location_zh: str | None = None
     project_year: int | None = None
     image_id: int | None = None
     hero_image_id: int | None = None
     language_id: int
     status: str = "published"
     meta_title: str | None = None
+    meta_title_en: str | None = None
+    meta_title_zh: str | None = None
     meta_description: str | None = None
+    meta_description_en: str | None = None
+    meta_description_zh: str | None = None
     legacy_detail_id: str | None = None
     legacy_detail_href: str | None = None
 
@@ -505,17 +535,29 @@ class ProjectCreate(BaseModel):
 class ProjectUpdate(BaseModel):
     category_id: int | None = None
     title: str | None = None
+    title_en: str | None = None
+    title_zh: str | None = None
     slug: str | None = None
     summary: str | None = None
+    summary_en: str | None = None
+    summary_zh: str | None = None
     body: str | None = None
+    body_en: str | None = None
+    body_zh: str | None = None
     location: str | None = None
+    location_en: str | None = None
+    location_zh: str | None = None
     project_year: int | None = None
     image_id: int | None = None
     hero_image_id: int | None = None
     language_id: int | None = None
     status: str | None = None
     meta_title: str | None = None
+    meta_title_en: str | None = None
+    meta_title_zh: str | None = None
     meta_description: str | None = None
+    meta_description_en: str | None = None
+    meta_description_zh: str | None = None
     legacy_detail_id: str | None = None
     legacy_detail_href: str | None = None
 
@@ -524,17 +566,29 @@ class ProjectRead(ORMModel):
     id: int
     category_id: int | None
     title: str
+    title_en: str | None = None
+    title_zh: str | None = None
     slug: str
     summary: str | None
+    summary_en: str | None = None
+    summary_zh: str | None = None
     body: str | None
+    body_en: str | None = None
+    body_zh: str | None = None
     location: str | None
+    location_en: str | None = None
+    location_zh: str | None = None
     project_year: int | None
     image_id: int | None
     hero_image_id: int | None
     language_id: int
     status: str
     meta_title: str | None
+    meta_title_en: str | None = None
+    meta_title_zh: str | None = None
     meta_description: str | None
+    meta_description_en: str | None = None
+    meta_description_zh: str | None = None
     legacy_detail_id: str | None
     legacy_detail_href: str | None
     created_at: datetime

@@ -7,9 +7,15 @@ from app.schemas.entities import ORMModel
 
 class NewsPostCreate(BaseModel):
     title: str
+    title_en: str | None = None
+    title_zh: str | None = None
     slug: str
     summary: str | None = None
+    summary_en: str | None = None
+    summary_zh: str | None = None
     content: str | None = None
+    content_en: str | None = None
+    content_zh: str | None = None
     content_json: str | None = None
     thumbnail_url: str | None = None
     image_id: int | None = None
@@ -18,15 +24,25 @@ class NewsPostCreate(BaseModel):
     is_featured: bool = False
     published_at: datetime | None = None
     meta_title: str | None = None
+    meta_title_en: str | None = None
+    meta_title_zh: str | None = None
     meta_description: str | None = None
+    meta_description_en: str | None = None
+    meta_description_zh: str | None = None
     sort_order: int = 0
 
 
 class NewsPostUpdate(BaseModel):
     title: str | None = None
+    title_en: str | None = None
+    title_zh: str | None = None
     slug: str | None = None
     summary: str | None = None
+    summary_en: str | None = None
+    summary_zh: str | None = None
     content: str | None = None
+    content_en: str | None = None
+    content_zh: str | None = None
     content_json: str | None = None
     thumbnail_url: str | None = None
     image_id: int | None = None
@@ -36,16 +52,26 @@ class NewsPostUpdate(BaseModel):
     published_at: datetime | None = None
     deleted_at: datetime | None = None
     meta_title: str | None = None
+    meta_title_en: str | None = None
+    meta_title_zh: str | None = None
     meta_description: str | None = None
+    meta_description_en: str | None = None
+    meta_description_zh: str | None = None
     sort_order: int | None = None
 
 
 class NewsPostRead(ORMModel):
     id: int
     title: str
+    title_en: str | None = None
+    title_zh: str | None = None
     slug: str
     summary: str | None
+    summary_en: str | None = None
+    summary_zh: str | None = None
     content: str | None
+    content_en: str | None = None
+    content_zh: str | None = None
     content_json: str | None
     thumbnail_url: str | None
     image_id: int | None
@@ -55,7 +81,11 @@ class NewsPostRead(ORMModel):
     published_at: datetime | None
     deleted_at: datetime | None
     meta_title: str | None
+    meta_title_en: str | None = None
+    meta_title_zh: str | None = None
     meta_description: str | None
+    meta_description_en: str | None = None
+    meta_description_zh: str | None = None
     sort_order: int
     created_at: datetime
     updated_at: datetime

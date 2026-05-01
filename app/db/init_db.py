@@ -60,6 +60,8 @@ def initialize_database() -> None:
     ensure_project_products_schema()
     ensure_inquiry_schema()
     ensure_product_schema()
+    ensure_news_schema()
+    ensure_about_content_translation_schema()
     ensure_order_schema()
     ensure_video_schema()
     with SessionLocal() as session:
@@ -167,6 +169,52 @@ def ensure_product_schema() -> None:
             for col_name, col_type in category_cols:
                 if col_name not in columns:
                     conn.execute(text(f"ALTER TABLE product_categories ADD COLUMN {col_name} {col_type}"))
+
+
+def ensure_news_schema() -> None:
+    with engine.begin() as conn:
+        inspector = inspect(conn)
+        table_names = set(inspector.get_table_names())
+        if "news_posts" not in table_names:
+            return
+
+        columns = {column["name"] for column in inspector.get_columns("news_posts")}
+        news_cols = [
+            ("title_en", "VARCHAR(500)"),
+            ("title_zh", "VARCHAR(500)"),
+            ("summary_en", "TEXT"),
+            ("summary_zh", "TEXT"),
+            ("content_en", "TEXT"),
+            ("content_zh", "TEXT"),
+            ("meta_title_en", "VARCHAR(500)"),
+            ("meta_title_zh", "VARCHAR(500)"),
+            ("meta_description_en", "TEXT"),
+            ("meta_description_zh", "TEXT"),
+        ]
+        for col_name, col_type in news_cols:
+            if col_name not in columns:
+                conn.execute(text(f"ALTER TABLE news_posts ADD COLUMN {col_name} {col_type}"))
+
+
+def ensure_about_content_translation_schema() -> None:
+    with engine.begin() as conn:
+        inspector = inspect(conn)
+        table_names = set(inspector.get_table_names())
+        if "content_block_items" not in table_names:
+            return
+
+        columns = {column["name"] for column in inspector.get_columns("content_block_items")}
+        about_item_cols = [
+            ("title_en", "VARCHAR(255)"),
+            ("title_zh", "VARCHAR(255)"),
+            ("subtitle_en", "VARCHAR(500)"),
+            ("subtitle_zh", "VARCHAR(500)"),
+            ("content_en", "TEXT"),
+            ("content_zh", "TEXT"),
+        ]
+        for col_name, col_type in about_item_cols:
+            if col_name not in columns:
+                conn.execute(text(f"ALTER TABLE content_block_items ADD COLUMN {col_name} {col_type}"))
 
 
 def ensure_order_schema() -> None:
@@ -412,6 +460,18 @@ def ensure_project_case_schema() -> None:
         columns_to_add = [
             ("legacy_detail_id", "VARCHAR(32)"),
             ("legacy_detail_href", "VARCHAR(500)"),
+            ("title_en", "VARCHAR(255)"),
+            ("title_zh", "VARCHAR(255)"),
+            ("summary_en", "TEXT"),
+            ("summary_zh", "TEXT"),
+            ("body_en", "TEXT"),
+            ("body_zh", "TEXT"),
+            ("location_en", "VARCHAR(255)"),
+            ("location_zh", "VARCHAR(255)"),
+            ("meta_title_en", "VARCHAR(255)"),
+            ("meta_title_zh", "VARCHAR(255)"),
+            ("meta_description_en", "VARCHAR(500)"),
+            ("meta_description_zh", "VARCHAR(500)"),
         ]
 
         for column_name, column_type in columns_to_add:

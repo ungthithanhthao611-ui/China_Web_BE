@@ -9,11 +9,12 @@ from sqlalchemy.orm import Session, selectinload, joinedload
 from app.core.config import settings
 from app.core.security import hash_password
 from app.models.content import Banner, ContentBlock, ContentBlockItem, Page, PageSection
-from app.models.media import MediaAsset
+from app.models.media import EntityMedia, MediaAsset
 from app.models.orders import Order
 from app.models.organization import Video
 from app.models.products import Product, ProductCategory, ProductImage
 from app.models.projects import Project, ProjectCategory, ProjectCategoryItem, ProjectProduct
+from app.models.taxonomy import Language
 from app.models.user import User, UserLoginHistory
 from app.schemas.user import UserLoginHistoryRead
 from app.services.media import delete_media_asset_record
@@ -775,8 +776,155 @@ def delete_entity_record(db: Session, entity_name: str, record_id: int) -> None:
         _raise_friendly_delete_integrity_error(entity_name=entity_name, record=record)
 
 
+def _language_by_code(db: Session, code: str) -> Language | None:
+    return db.scalar(
+        select(Language).where(
+            func.lower(Language.code) == str(code or "").strip().lower(),
+            Language.status == "active",
+        )
+    )
+
+
+def _unique_project_slug(db: Session, base_slug: str, language_code: str, current_project_id: int | None = None) -> str:
+    normalized_base = str(base_slug or "project").strip().strip("-") or "project"
+    normalized_code = str(language_code or "").strip().lower()
+    seed_slug = f"{normalized_base}-{normalized_code}" if normalized_code else normalized_base
+    candidate = seed_slug
+    index = 2
+
+    while True:
+        query = select(Project.id).where(Project.slug == candidate)
+        existing_id = db.scalar(query)
+        if existing_id is None or (current_project_id is not None and int(existing_id) == int(current_project_id)):
+            return candidate
+        candidate = f"{seed_slug}-{index}"
+        index += 1
+
+
+def _copy_project_relations_for_translation(db: Session, source: Project, target: Project) -> None:
+    existing_product_ids = {
+        int(item.product_id)
+        for item in db.scalars(select(ProjectProduct).where(ProjectProduct.project_id == target.id)).all()
+    }
+    source_products = db.scalars(
+        select(ProjectProduct).where(ProjectProduct.project_id == source.id).order_by(ProjectProduct.sort_order, ProjectProduct.id)
+    ).all()
+    for item in source_products:
+        if int(item.product_id) in existing_product_ids:
+            continue
+        db.add(
+            ProjectProduct(
+                project_id=target.id,
+                product_id=item.product_id,
+                sort_order=item.sort_order,
+                note=item.note,
+            )
+        )
+
+    existing_media_keys = {
+        (int(item.media_id), str(item.group_name or "default"))
+        for item in db.scalars(
+            select(EntityMedia).where(
+                EntityMedia.entity_type == "project",
+                EntityMedia.entity_id == target.id,
+            )
+        ).all()
+    }
+    source_media = db.scalars(
+        select(EntityMedia)
+        .where(EntityMedia.entity_type == "project", EntityMedia.entity_id == source.id)
+        .order_by(EntityMedia.group_name, EntityMedia.sort_order, EntityMedia.id)
+    ).all()
+    for item in source_media:
+        key = (int(item.media_id), str(item.group_name or "default"))
+        if key in existing_media_keys:
+            continue
+        db.add(
+            EntityMedia(
+                entity_type="project",
+                entity_id=target.id,
+                media_id=item.media_id,
+                group_name=item.group_name,
+                sort_order=item.sort_order,
+                caption=item.caption,
+            )
+        )
+
+
+def _translated_project_payload(source: Project, target_language_code: str) -> dict[str, Any]:
+    translated_fields: dict[str, Any] = {}
+    for field_name in ("title", "summary", "body", "location", "meta_title", "meta_description"):
+        value = getattr(source, field_name, None)
+        translated_fields[field_name] = (
+            smart_translate(value, target_language_code)
+            if isinstance(value, str) and value.strip()
+            else value
+        )
+
+    return {
+        "category_id": source.category_id,
+        "summary": translated_fields.get("summary"),
+        "body": translated_fields.get("body"),
+        "location": translated_fields.get("location"),
+        "project_year": source.project_year,
+        "image_id": source.image_id,
+        "hero_image_id": source.hero_image_id,
+        "status": "draft",
+        "meta_title": translated_fields.get("meta_title"),
+        "meta_description": translated_fields.get("meta_description"),
+        "legacy_detail_id": source.legacy_detail_id,
+        "legacy_detail_href": source.legacy_detail_href,
+        "title": translated_fields.get("title") or source.title,
+    }
+
+
+def _auto_translate_project_record(db: Session, record: Project) -> dict[str, Any]:
+    translated_project_ids: list[int] = []
+
+    for language_code in ("en", "zh"):
+        language = _language_by_code(db, language_code)
+        if not language:
+            continue
+
+        preferred_slug = f"{str(record.slug or 'project').strip().strip('-')}-{language_code}"
+        target = db.scalar(
+            select(Project).where(
+                Project.slug == preferred_slug,
+                Project.language_id == language.id,
+            )
+        )
+
+        translated_payload = _translated_project_payload(record, language_code)
+        if target is None:
+            target_slug = _unique_project_slug(db, record.slug, language_code)
+            target = Project(
+                **translated_payload,
+                slug=target_slug,
+                language_id=language.id,
+            )
+            db.add(target)
+            db.flush()
+        else:
+            for field_name, value in translated_payload.items():
+                current_value = getattr(target, field_name, None)
+                if current_value is None or (isinstance(current_value, str) and not current_value.strip()):
+                    setattr(target, field_name, value)
+
+        _copy_project_relations_for_translation(db=db, source=record, target=target)
+        translated_project_ids.append(target.id)
+
+    db.commit()
+    return {
+        "source": get_entity_record(db=db, entity_name="projects", record_id=record.id),
+        "translations": [
+            get_entity_record(db=db, entity_name="projects", record_id=project_id)
+            for project_id in translated_project_ids
+        ],
+    }
+
+
 def auto_translate_record(db: Session, entity_name: str, record_id: int) -> dict[str, Any]:
-    if entity_name not in ["products", "product_categories"]:
+    if entity_name not in ["products", "product_categories", "news_posts", "content_block_items", "projects"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Auto-translation is not supported for entity '{entity_name}'."
@@ -790,7 +938,10 @@ def auto_translate_record(db: Session, entity_name: str, record_id: int) -> dict
     # Fields to translate
     fields_map = {
         "products": ["name", "short_desc", "full_desc", "size", "material", "color", "use_case"],
-        "product_categories": ["name", "description"]
+        "product_categories": ["name", "description"],
+        "projects": ["title", "summary", "body", "location", "meta_title", "meta_description"],
+        "news_posts": ["title", "summary", "content", "meta_title", "meta_description"],
+        "content_block_items": ["title", "subtitle", "content"],
     }
     
     fields = fields_map.get(entity_name, [])
@@ -816,7 +967,7 @@ def auto_translate_record(db: Session, entity_name: str, record_id: int) -> dict
 
 
 def auto_translate_payload(entity_name: str, payload: dict[str, Any]) -> dict[str, Any]:
-    if entity_name not in ["products", "product_categories"]:
+    if entity_name not in ["products", "product_categories", "projects", "news_posts", "content_block_items"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Auto-translation is not supported for entity '{entity_name}'.",
@@ -825,6 +976,9 @@ def auto_translate_payload(entity_name: str, payload: dict[str, Any]) -> dict[st
     fields_map = {
         "products": ["name", "short_desc", "full_desc", "size", "material", "color", "use_case"],
         "product_categories": ["name", "description"],
+        "projects": ["title", "summary", "body", "location", "meta_title", "meta_description"],
+        "news_posts": ["title", "summary", "content", "meta_title", "meta_description"],
+        "content_block_items": ["title", "subtitle", "content"],
     }
 
     result = dict(payload or {})

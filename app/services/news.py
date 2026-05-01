@@ -30,8 +30,25 @@ def _parse_content_json(raw_value: Any) -> dict[str, Any] | None:
     return None
 
 
-def _serialize_public_post(record: NewsPost) -> dict[str, Any]:
+def _apply_localized_fields(payload: dict[str, Any], language_code: str) -> dict[str, Any]:
+    if language_code == "vi":
+        return payload
+
+    suffix = f"_{language_code}"
+    for field in ["title", "summary", "content", "meta_title", "meta_description"]:
+        localized = payload.get(f"{field}{suffix}")
+        if localized and str(localized).strip():
+            payload[field] = localized
+
+    if payload.get(f"content{suffix}") and str(payload.get(f"content{suffix}") or "").strip():
+        payload["content_json"] = None
+
+    return payload
+
+
+def _serialize_public_post(record: NewsPost, language_code: str = "vi") -> dict[str, Any]:
     payload = _serialize(NewsPostRead, record)
+    payload = _apply_localized_fields(payload, language_code)
     parsed_content_json = _parse_content_json(payload.get("content_json"))
     rendered_html = render_content_json_to_html(parsed_content_json) if parsed_content_json else ""
     fallback_content = payload.get("content") or ""
@@ -48,6 +65,7 @@ def list_news_posts(
     limit: int = 12,
     keyword: str | None = None,
     status: str | None = None,
+    language_code: str = "vi",
 ) -> dict[str, Any]:
     """Danh sách bài viết public (chỉ published, chưa soft-delete)."""
     query = select(NewsPost).where(
@@ -73,14 +91,14 @@ def list_news_posts(
     ).all()
 
     return {
-        "items": [_serialize_public_post(p) for p in posts],
+        "items": [_serialize_public_post(p, language_code=language_code) for p in posts],
         "total": total,
         "skip": skip,
         "limit": limit,
     }
 
 
-def get_news_post_detail(db: Session, *, slug: str) -> dict[str, Any]:
+def get_news_post_detail(db: Session, *, slug: str, language_code: str = "vi") -> dict[str, Any]:
     """Chi tiết bài viết public theo slug."""
     post = db.scalar(
         select(NewsPost).where(
@@ -91,7 +109,7 @@ def get_news_post_detail(db: Session, *, slug: str) -> dict[str, Any]:
     )
     if not post:
         return None
-    return _serialize_public_post(post)
+    return _serialize_public_post(post, language_code=language_code)
 
 
 def list_admin_news_posts(

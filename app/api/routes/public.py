@@ -174,14 +174,19 @@ def news_list(
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=12, ge=1, le=100),
     keyword: str | None = Query(default=None),
+    language_code: str = Depends(get_language_code),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
-    return list_news_posts(db=db, skip=skip, limit=limit, keyword=keyword)
+    return list_news_posts(db=db, skip=skip, limit=limit, keyword=keyword, language_code=language_code)
 
 
 @router.get("/news/{slug}")
-def news_detail(slug: str, db: Session = Depends(get_db)) -> dict[str, Any]:
-    result = get_news_post_detail(db=db, slug=slug)
+def news_detail(
+    slug: str,
+    language_code: str = Depends(get_language_code),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    result = get_news_post_detail(db=db, slug=slug, language_code=language_code)
     if result is None:
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="News post not found")

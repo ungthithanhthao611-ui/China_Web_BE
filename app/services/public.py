@@ -132,7 +132,19 @@ def _media_group_urls(
     ]
 
 
-def _content_blocks(db: Session, entity_type: str, entity_id: int, language_id: int) -> list[dict[str, Any]]:
+def _apply_content_item_localized_fields(payload: dict[str, Any], language_code: str) -> dict[str, Any]:
+    if language_code not in {"en", "zh"}:
+        return payload
+
+    localized = dict(payload)
+    for field in ["title", "subtitle", "content"]:
+        translated = localized.get(f"{field}_{language_code}")
+        if translated:
+            localized[field] = translated
+    return localized
+
+
+def _content_blocks(db: Session, entity_type: str, entity_id: int, language_id: int, language_code: str = "vi") -> list[dict[str, Any]]:
     blocks = db.scalars(
         select(ContentBlock)
         .options(selectinload(ContentBlock.items).selectinload(ContentBlockItem.image))
@@ -150,6 +162,7 @@ def _content_blocks(db: Session, entity_type: str, entity_id: int, language_id: 
         block_data["items"] = []
         for item in block.items:
             item_data = _serialize(ContentBlockItemRead, item)
+            item_data = _apply_content_item_localized_fields(item_data, language_code)
             item_data["image"] = _serialize_media(item.image)
             block_data["items"].append(item_data)
         payload.append(block_data)
@@ -286,11 +299,22 @@ def list_banners(db: Session, language_code: str, banner_type: str | None) -> li
 
 def get_page_detail(db: Session, slug: str, language_code: str) -> dict[str, Any]:
     language = get_language(db, language_code)
+    page_language = language
+    if slug == "about" and language.code in {"en", "zh"}:
+        vietnamese_language = db.scalar(select(Language).where(Language.code == "vi", Language.status == "active"))
+        page_language = vietnamese_language or language
+
     page = db.scalar(
         select(Page)
         .options(selectinload(Page.sections).selectinload(PageSection.image))
-        .where(Page.slug == slug, Page.language_id == language.id, Page.status == "published")
+        .where(Page.slug == slug, Page.language_id == page_language.id, Page.status == "published")
     )
+    if not page and page_language.id != language.id:
+        page = db.scalar(
+            select(Page)
+            .options(selectinload(Page.sections).selectinload(PageSection.image))
+            .where(Page.slug == slug, Page.language_id == language.id, Page.status == "published")
+        )
     if not page:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Page not found.")
 
@@ -300,7 +324,7 @@ def get_page_detail(db: Session, slug: str, language_code: str) -> dict[str, Any
         section_data = _serialize(PageSectionRead, section)
         section_data["image"] = _serialize_media(section.image)
         data["sections"].append(section_data)
-    data["blocks"] = _content_blocks(db, "page", page.id, language.id)
+    data["blocks"] = _content_blocks(db, "page", page.id, page_language.id, language.code)
     data["gallery"] = _entity_gallery(db, "page", page.id)
     return data
 
@@ -342,6 +366,7 @@ def list_projects(
         project_media_groups = {}
 
     for item in items:
+        item = _translate_item(item, language.code)
         data = _serialize(ProjectRead, item)
         data["image"] = _serialize_media(item.image)
         data["hero_image"] = _serialize_media(item.hero_image)
@@ -375,6 +400,7 @@ def get_project_detail(db: Session, slug: str, language_code: str) -> dict[str, 
     if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found.")
 
+    project = _translate_item(project, language.code)
     data = _serialize(ProjectRead, project)
     data["image"] = _serialize_media(project.image)
     data["hero_image"] = _serialize_media(project.hero_image)
@@ -609,7 +635,10 @@ def _translate_item(item: Any, language_code: str) -> Any:
     
     suffix = f"_{language_code}"
     # Fields that can be localized
-    fields = ["name", "description", "short_desc", "full_desc", "size", "material", "color", "use_case"]
+    fields = [
+        "name", "description", "short_desc", "full_desc", "size", "material", "color", "use_case",
+        "title", "summary", "body", "location", "meta_title", "meta_description",
+    ]
     
     for field in fields:
         localized_attr = f"{field}{suffix}"
