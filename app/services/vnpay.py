@@ -7,7 +7,7 @@ import re
 import unicodedata
 from datetime import datetime, timedelta, timezone
 from ipaddress import ip_address
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 
 from fastapi import HTTPException, Request, status
 
@@ -98,14 +98,49 @@ def normalize_vnpay_txn_ref(value: str) -> str:
   return compact[:100]
 
 
-def _validate_vnpay_settings() -> None:
+def _normalize_return_url(value: str | None) -> str:
+  return str(value or '').strip().rstrip('/')
+
+
+def resolve_vnpay_return_url(return_url: str | None = None) -> str:
   runtime_settings = _runtime_settings()
+  candidate = _normalize_return_url(return_url) or _normalize_return_url(runtime_settings.vnpay_return_url)
+  if not candidate:
+    return ''
+
+  parsed = urlparse(candidate)
+  hostname = (parsed.hostname or '').strip().lower()
+  if parsed.scheme not in {'http', 'https'}:
+    raise HTTPException(
+      status_code=status.HTTP_400_BAD_REQUEST,
+      detail='VNPAY return URL phải bắt đầu bằng http:// hoặc https://.',
+    )
+
+  if not hostname:
+    raise HTTPException(
+      status_code=status.HTTP_400_BAD_REQUEST,
+      detail='VNPAY return URL không hợp lệ.',
+    )
+
+  is_local_hostname = hostname in {'localhost', '127.0.0.1'}
+  if parsed.scheme == 'http' and not is_local_hostname:
+    raise HTTPException(
+      status_code=status.HTTP_400_BAD_REQUEST,
+      detail='VNPAY return URL ngoài môi trường local phải dùng https://.',
+    )
+
+  return candidate
+
+
+def _validate_vnpay_settings(return_url: str | None = None) -> str:
+  runtime_settings = _runtime_settings()
+  resolved_return_url = resolve_vnpay_return_url(return_url)
   missing_keys = []
   if not runtime_settings.vnpay_tmn_code:
     missing_keys.append('VNPAY_TMN_CODE')
   if not runtime_settings.vnpay_hash_secret:
     missing_keys.append('VNPAY_HASH_SECRET')
-  if not runtime_settings.vnpay_return_url:
+  if not resolved_return_url:
     missing_keys.append('VNPAY_RETURN_URL')
 
   if missing_keys:
@@ -113,7 +148,7 @@ def _validate_vnpay_settings() -> None:
       'VNPAY config missing keys=%s payment_url=%s return_url=%s tmn=%s secret=%s',
       missing_keys,
       runtime_settings.vnpay_payment_url or '-',
-      runtime_settings.vnpay_return_url or '-',
+      resolved_return_url or runtime_settings.vnpay_return_url or '-',
       runtime_settings.vnpay_tmn_code or '-',
       _mask_value(runtime_settings.vnpay_hash_secret, keep_start=4, keep_end=4),
     )
@@ -121,6 +156,8 @@ def _validate_vnpay_settings() -> None:
       status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
       detail=f'Thiếu cấu hình VNPAY bắt buộc: {", ".join(missing_keys)}.',
     )
+
+  return resolved_return_url
 
 
 def create_secure_hash(params: dict[str, object]) -> str:
@@ -134,9 +171,9 @@ def create_secure_hash(params: dict[str, object]) -> str:
   ).hexdigest()
 
 
-def build_payment_url(*, txn_ref: str, amount: float, order_info: str, client_ip: str) -> str:
-  _validate_vnpay_settings()
+def build_payment_url(*, txn_ref: str, amount: float, order_info: str, client_ip: str, return_url: str | None = None) -> str:
   runtime_settings = _runtime_settings()
+  resolved_return_url = _validate_vnpay_settings(return_url)
 
   normalized_txn_ref = normalize_vnpay_txn_ref(txn_ref)
   if not normalized_txn_ref:
@@ -159,7 +196,7 @@ def build_payment_url(*, txn_ref: str, amount: float, order_info: str, client_ip
     'vnp_OrderInfo': normalize_vnpay_text(order_info, 'Thanh toan don hang'),
     'vnp_OrderType': 'other',
     'vnp_Locale': runtime_settings.vnpay_locale,
-    'vnp_ReturnUrl': runtime_settings.vnpay_return_url,
+    'vnp_ReturnUrl': resolved_return_url,
     'vnp_IpAddr': client_ip,
     'vnp_CreateDate': create_date,
     'vnp_ExpireDate': expire_date,

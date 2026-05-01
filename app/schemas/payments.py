@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 
 class VnpayCreatePaymentRequest(BaseModel):
   order_id: int = Field(..., gt=0)
+  return_url: str | None = Field(default=None, max_length=500)
 
 
 class VnpayCreatePaymentResponse(BaseModel):

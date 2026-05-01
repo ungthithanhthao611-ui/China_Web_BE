@@ -59,6 +59,7 @@ def create_vnpay_payment(
     amount=order.total_amount,
     order_info=f'Thanh toan don hang {order.code}',
     client_ip=resolve_client_ip(request),
+    return_url=payload.return_url,
   )
 
   return VnpayCreatePaymentResponse(
