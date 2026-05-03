@@ -129,6 +129,39 @@ async def import_media_asset_from_url(
     )
 
 
+@router.put('/site-settings')
+def update_site_settings(
+    payload: dict[str, Any],
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    from datetime import datetime, timezone
+    from sqlalchemy import select
+
+    from app.models.taxonomy import SiteSetting
+
+    normalized_payload = {
+        str(key).strip(): '' if value is None else str(value)
+        for key, value in payload.items()
+        if str(key).strip()
+    }
+
+    for key, value in normalized_payload.items():
+        setting = db.scalar(select(SiteSetting).where(SiteSetting.config_key == key))
+        if setting:
+            setting.config_value = value
+            setting.updated_at = datetime.now(timezone.utc)
+        else:
+            setting = SiteSetting(
+                config_key=key,
+                config_value=value,
+                updated_at=datetime.now(timezone.utc),
+            )
+            db.add(setting)
+
+    db.commit()
+    return {"status": "success", "items": normalized_payload}
+
+
 @router.get('/{entity_name}')
 def list_entity(
     entity_name: str,

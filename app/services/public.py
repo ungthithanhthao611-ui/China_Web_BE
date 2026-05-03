@@ -277,6 +277,50 @@ def get_bootstrap_payload(db: Session, language_code: str) -> dict[str, Any]:
     }
 
 
+def get_public_site_settings(db: Session, language_code: str) -> dict[str, Any]:
+    language = get_language(db, language_code)
+    default_language = _get_default_language(db)
+    rows = db.scalars(
+        select(SiteSetting).where(
+            or_(
+                SiteSetting.language_id == language.id,
+                SiteSetting.language_id.is_(None),
+                SiteSetting.language_id == (default_language.id if default_language else None),
+            )
+        )
+    ).all()
+
+    settings_map: dict[str, str] = {}
+    rows_sorted = sorted(
+        rows,
+        key=lambda row: (
+            0 if row.language_id == language.id else 1 if default_language and row.language_id == default_language.id else 2,
+            row.id,
+        ),
+    )
+    for row in rows_sorted:
+        if row.config_key not in settings_map and row.config_value is not None:
+            settings_map[row.config_key] = row.config_value
+
+    site_name = (
+        settings_map.get("site_name")
+        or settings_map.get("company_name")
+        or settings_map.get("brand_name")
+        or ""
+    )
+    logo_url = (
+        settings_map.get("logo_url")
+        or settings_map.get("site_logo_url")
+        or settings_map.get("company_logo_url")
+        or ""
+    )
+
+    return {
+        "site_name": site_name,
+        "logo_url": logo_url,
+    }
+
+
 def list_banners(db: Session, language_code: str, banner_type: str | None) -> list[dict[str, Any]]:
     language = get_language(db, language_code)
     query = (

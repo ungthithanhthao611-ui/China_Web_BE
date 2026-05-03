@@ -9,7 +9,9 @@ from app.models.products import ContactInquiry, Product, ProductCategory
 from app.models.projects import Project, ProjectCategory, ProjectCategoryItem, ProjectProduct
 from app.models.news import NewsPost
 from app.models.taxonomy import Language, SiteSetting, Translation
+from app.models.admin import AdminUser
 from app.models.user import User
+
 from app.schemas.entities import (
     BannerCreate,
     BannerRead,
@@ -88,7 +90,9 @@ from app.schemas.products import (
     ProductRead,
     ProductUpdate,
 )
+from app.schemas.admin_user import AdminUserCreate, AdminUserRead, AdminUserUpdate
 from app.schemas.user import UserCreate, UserRead, UserUpdate
+
 
 
 @dataclass(frozen=True)
@@ -167,5 +171,7 @@ ENTITY_REGISTRY: dict[str, EntityRegistration] = {
     "users": EntityRegistration(User, UserRead, UserCreate, UserUpdate),
     # ─── News ─────────────────────────────────────────────────────────────────
     "news_posts": EntityRegistration(NewsPost, NewsPostRead, NewsPostCreate, NewsPostUpdate),
+    "admin_users": EntityRegistration(AdminUser, AdminUserRead, AdminUserCreate, AdminUserUpdate),
 }
+
 
