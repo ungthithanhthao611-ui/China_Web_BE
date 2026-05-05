@@ -106,7 +106,7 @@ def seed_product_categories(session) -> None:
             "slug": "da-mem-op-tuong-linh-hoat",
             "description": "Danh mục sản phẩm đá mềm ốp tường linh hoạt.",
             "description_en": "Flexible stone wall cladding product category.",
-            "description_zh": "柔性石材墙面饰材产品分类。",
+            "description_zh": "柔性石材墙面饰材 product category.",
             "sort_order": 10,
             "is_active": True,
         }
