@@ -10,6 +10,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 
 from app.api.router import api_router
 from app.core.config import settings
@@ -64,6 +65,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(GZipMiddleware, minimum_size=500)
 if settings.is_production:
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.trusted_hosts)
 app.include_router(api_router, prefix=settings.api_v1_prefix)

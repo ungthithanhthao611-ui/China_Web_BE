@@ -1,3 +1,4 @@
+import time
 from collections.abc import Iterable
 from typing import Any
 
@@ -224,7 +225,18 @@ def _build_menu_tree(items: list[MenuItem]) -> list[dict[str, Any]]:
     return roots
 
 
+_BOOTSTRAP_CACHE: dict[str, Any] = {}
+_BOOTSTRAP_CACHE_TTL = 60  # Cache for 1 minute
+
 def get_bootstrap_payload(db: Session, language_code: str) -> dict[str, Any]:
+    # Check cache
+    cache_key = f"bootstrap_{language_code}"
+    now = time.time()
+    if cache_key in _BOOTSTRAP_CACHE:
+        entry = _BOOTSTRAP_CACHE[cache_key]
+        if now - entry["timestamp"] < _BOOTSTRAP_CACHE_TTL:
+            return entry["data"]
+
     language = get_language(db, language_code)
     active_menus = db.scalars(
         select(Menu)
@@ -269,12 +281,20 @@ def get_bootstrap_payload(db: Session, language_code: str) -> dict[str, Any]:
             "items": _build_menu_tree(menu.items),
         }
 
-    return {
+    payload = {
         "language": _serialize(LanguageRead, language),
         "menus": menu_payload,
         "settings": [_serialize(SiteSettingRead, row) for row in settings_rows],
         "hero_banners": banners,
     }
+
+    # Update cache
+    _BOOTSTRAP_CACHE[cache_key] = {
+        "data": payload,
+        "timestamp": now
+    }
+
+    return payload
 
 
 def get_public_site_settings(db: Session, language_code: str) -> dict[str, Any]:
