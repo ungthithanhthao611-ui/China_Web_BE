@@ -225,17 +225,46 @@ def _build_menu_tree(items: list[MenuItem]) -> list[dict[str, Any]]:
     return roots
 
 
-_BOOTSTRAP_CACHE: dict[str, Any] = {}
-_BOOTSTRAP_CACHE_TTL = 60  # Cache for 1 minute
+_PUBLIC_CACHE: dict[str, dict[str, Any]] = {}
+_PUBLIC_CACHE_TTLS = {
+    "bootstrap": 300,
+    "site_settings": 300,
+    "projects": 120,
+}
+
+
+def _make_public_cache_key(prefix: str, *parts: Any) -> str:
+    normalized_parts = [prefix]
+    normalized_parts.extend(str(part) if part is not None else "__none__" for part in parts)
+    return "::".join(normalized_parts)
+
+
+def _get_cached_public_payload(cache_key: str, ttl: int) -> dict[str, Any] | None:
+    entry = _PUBLIC_CACHE.get(cache_key)
+    if not entry:
+        return None
+
+    now = time.time()
+    if now - entry["timestamp"] >= ttl:
+        _PUBLIC_CACHE.pop(cache_key, None)
+        return None
+
+    return entry["data"]
+
+
+def _set_cached_public_payload(cache_key: str, data: dict[str, Any]) -> dict[str, Any]:
+    _PUBLIC_CACHE[cache_key] = {
+        "data": data,
+        "timestamp": time.time(),
+    }
+    return data
+
 
 def get_bootstrap_payload(db: Session, language_code: str) -> dict[str, Any]:
-    # Check cache
-    cache_key = f"bootstrap_{language_code}"
-    now = time.time()
-    if cache_key in _BOOTSTRAP_CACHE:
-        entry = _BOOTSTRAP_CACHE[cache_key]
-        if now - entry["timestamp"] < _BOOTSTRAP_CACHE_TTL:
-            return entry["data"]
+    cache_key = _make_public_cache_key("bootstrap", language_code)
+    cached_payload = _get_cached_public_payload(cache_key, _PUBLIC_CACHE_TTLS["bootstrap"])
+    if cached_payload is not None:
+        return cached_payload
 
     language = get_language(db, language_code)
     active_menus = db.scalars(
@@ -288,16 +317,15 @@ def get_bootstrap_payload(db: Session, language_code: str) -> dict[str, Any]:
         "hero_banners": banners,
     }
 
-    # Update cache
-    _BOOTSTRAP_CACHE[cache_key] = {
-        "data": payload,
-        "timestamp": now
-    }
-
-    return payload
+    return _set_cached_public_payload(cache_key, payload)
 
 
 def get_public_site_settings(db: Session, language_code: str) -> dict[str, Any]:
+    cache_key = _make_public_cache_key("site_settings", language_code)
+    cached_payload = _get_cached_public_payload(cache_key, _PUBLIC_CACHE_TTLS["site_settings"])
+    if cached_payload is not None:
+        return cached_payload
+
     language = get_language(db, language_code)
     default_language = _get_default_language(db)
     rows = db.scalars(
@@ -335,10 +363,11 @@ def get_public_site_settings(db: Session, language_code: str) -> dict[str, Any]:
         or ""
     )
 
-    return {
+    payload = {
         "site_name": site_name,
         "logo_url": logo_url,
     }
+    return _set_cached_public_payload(cache_key, payload)
 
 
 def list_banners(db: Session, language_code: str, banner_type: str | None) -> list[dict[str, Any]]:
@@ -403,20 +432,36 @@ def list_projects(
     skip: int,
     limit: int,
 ) -> dict[str, Any]:
+    cache_key = _make_public_cache_key("projects", language_code, category_slug, year, skip, limit)
+    cached_payload = _get_cached_public_payload(cache_key, _PUBLIC_CACHE_TTLS["projects"])
+    if cached_payload is not None:
+        return cached_payload
+
     language = get_language(db, language_code)
-    base_query = (
+
+    project_filters = [Project.status == "published"]
+    category_join_required = bool(category_slug)
+
+    if year:
+        project_filters.append(Project.project_year == year)
+
+    project_ids_query = select(Project.id).where(*project_filters)
+    if category_join_required:
+        project_ids_query = project_ids_query.join(ProjectCategory).where(ProjectCategory.slug == category_slug)
+
+    total = db.scalar(select(func.count()).select_from(project_ids_query.subquery())) or 0
+
+    items_query = (
         select(Project)
         .options(selectinload(Project.image), selectinload(Project.hero_image), selectinload(Project.category))
-        .where(Project.status == "published")
+        .where(*project_filters)
     )
-    if category_slug:
-        base_query = base_query.join(ProjectCategory).where(ProjectCategory.slug == category_slug)
-    if year:
-        base_query = base_query.where(Project.project_year == year)
+    if category_join_required:
+        items_query = items_query.join(ProjectCategory).where(ProjectCategory.slug == category_slug)
 
-    ordered_query = base_query.order_by(Project.project_year.desc().nullslast(), Project.id.desc())
-    total = len(db.scalars(base_query).all())
-    items = db.scalars(ordered_query.offset(skip).limit(limit)).all()
+    items = db.scalars(
+        items_query.order_by(Project.project_year.desc().nullslast(), Project.id.desc()).offset(skip).limit(limit)
+    ).all()
 
     payload = []
     project_ids = [item.id for item in items]
@@ -439,14 +484,16 @@ def list_projects(
             if item.category
             else None
         )
-        
+
         media_groups = project_media_groups.get(item.id, {})
         data["leftGallery"] = _media_group_urls(media_groups, "left_gallery")
         data["rightGallery"] = _media_group_urls(media_groups, "right_gallery")
         data["usedProducts"] = _serialize_project_products(item)
-        
+
         payload.append(data)
-    return {"items": payload, "pagination": {"skip": skip, "limit": limit, "total": total}}
+
+    response_payload = {"items": payload, "pagination": {"skip": skip, "limit": limit, "total": total}}
+    return _set_cached_public_payload(cache_key, response_payload)
 
 
 def get_project_detail(db: Session, slug: str, language_code: str) -> dict[str, Any]:
