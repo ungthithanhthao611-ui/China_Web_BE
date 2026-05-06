@@ -16,6 +16,7 @@ from app.schemas.products import InquiryCreate, ProductCategoryNodeRead, Product
 from app.schemas.projects import ProjectCasePageRead
 from app.models.taxonomy import Language, SiteSetting
 from app.services.honors import list_public_honors
+from app.services.news import list_news_posts
 from app.services.product_pricing import decorate_product_pricing_payload
 from app.schemas.entities import (
     BannerRead,
@@ -230,6 +231,7 @@ _PUBLIC_CACHE_TTLS = {
     "bootstrap": 300,
     "site_settings": 300,
     "projects": 120,
+    "home_bootstrap": 120,
 }
 
 
@@ -367,6 +369,41 @@ def get_public_site_settings(db: Session, language_code: str) -> dict[str, Any]:
         "site_name": site_name,
         "logo_url": logo_url,
     }
+    return _set_cached_public_payload(cache_key, payload)
+
+
+def get_home_bootstrap_payload(db: Session, language_code: str) -> dict[str, Any]:
+    cache_key = _make_public_cache_key("home_bootstrap", language_code)
+    cached_payload = _get_cached_public_payload(cache_key, _PUBLIC_CACHE_TTLS["home_bootstrap"])
+    if cached_payload is not None:
+        return cached_payload
+
+    payload = {
+        "products": list_products(
+            db=db,
+            category_slug=None,
+            skip=0,
+            limit=4,
+            language_code=language_code,
+        ),
+        "projects": list_projects(
+            db=db,
+            language_code=language_code,
+            category_slug=None,
+            year=None,
+            skip=0,
+            limit=4,
+        ),
+        "news": list_news_posts(
+            db=db,
+            skip=0,
+            limit=8,
+            keyword=None,
+            language_code=language_code,
+        ),
+        "honors": list_public_honors(db=db, year=None),
+    }
+
     return _set_cached_public_payload(cache_key, payload)
 
 

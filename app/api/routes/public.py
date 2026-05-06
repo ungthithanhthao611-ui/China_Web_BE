@@ -13,6 +13,7 @@ from app.services.news import (
 from app.services.public import (
     create_inquiry,
     get_bootstrap_payload,
+    get_home_bootstrap_payload,
     get_public_site_settings,
     get_branch_detail,
     get_page_detail,
@@ -35,6 +36,11 @@ router = APIRouter()
 @router.get("/bootstrap")
 def bootstrap(language_code: str = Depends(get_language_code), db: Session = Depends(get_db)) -> dict[str, Any]:
     return get_bootstrap_payload(db=db, language_code=language_code)
+
+
+@router.get("/home-bootstrap")
+def home_bootstrap(language_code: str = Depends(get_language_code), db: Session = Depends(get_db)) -> dict[str, Any]:
+    return get_home_bootstrap_payload(db=db, language_code=language_code)
 
 
 @router.get("/site-settings")
