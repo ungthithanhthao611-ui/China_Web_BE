@@ -181,6 +181,82 @@ def _content_blocks(db: Session, entity_type: str, entity_id: int, language_id: 
     return payload
 
 
+def _serialize_about_media(record: MediaAsset | None) -> dict[str, Any] | None:
+    if not record or not record.url:
+        return None
+    return {
+        "url": record.url,
+        "width": record.width,
+        "height": record.height,
+        "alt_text": record.alt_text,
+        "title": record.title,
+    }
+
+
+def _serialize_about_sections(page: Page) -> list[dict[str, Any]]:
+    payload: list[dict[str, Any]] = []
+    for section in sorted(page.sections, key=lambda row: (row.sort_order, row.id)):
+        payload.append(
+            {
+                "anchor": section.anchor,
+                "title": section.title,
+                "section_type": section.section_type,
+                "sort_order": section.sort_order,
+                "image": _serialize_about_media(section.image),
+            }
+        )
+    return payload
+
+
+def _serialize_about_blocks(blocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    payload: list[dict[str, Any]] = []
+    for block in blocks:
+        block_data = {
+            "block_key": block.get("block_key"),
+            "title": block.get("title"),
+            "subtitle": block.get("subtitle"),
+            "content": block.get("content"),
+            "block_type": block.get("block_type"),
+            "sort_order": block.get("sort_order"),
+            "items": [],
+        }
+        for item in block.get("items", []):
+            block_data["items"].append(
+                {
+                    "item_key": item.get("item_key"),
+                    "title": item.get("title"),
+                    "subtitle": item.get("subtitle"),
+                    "content": item.get("content"),
+                    "link": item.get("link"),
+                    "metadata_json": item.get("metadata_json"),
+                    "sort_order": item.get("sort_order"),
+                    "image": _serialize_about_media(item.get("image")) if isinstance(item.get("image"), MediaAsset) else item.get("image"),
+                }
+            )
+        payload.append(block_data)
+    return payload
+
+
+def _build_about_page_payload(
+    db: Session,
+    page: Page,
+    page_language_id: int,
+    language_code: str,
+) -> dict[str, Any]:
+    return {
+        "slug": page.slug,
+        "title": page.title,
+        "summary": page.summary,
+        "meta_title": page.meta_title,
+        "meta_description": page.meta_description,
+        "sections": _serialize_about_sections(page),
+        "blocks": _serialize_about_blocks(
+            _content_blocks(db, "page", page.id, page_language_id, language_code),
+        ),
+        "gallery": [],
+    }
+
+
 def _serialize_project_products(project: Project) -> list[dict[str, Any]]:
     items = sorted(
         getattr(project, "project_products", []) or [],
@@ -555,19 +631,30 @@ def get_page_detail(db: Session, slug: str, language_code: str) -> dict[str, Any
         vietnamese_language = db.scalar(select(Language).where(Language.code == "vi", Language.status == "active"))
         page_language = vietnamese_language or language
 
+    base_page_query = select(Page).options(
+        selectinload(Page.sections).selectinload(PageSection.image),
+    )
     page = db.scalar(
-        select(Page)
-        .options(selectinload(Page.sections).selectinload(PageSection.image))
-        .where(Page.slug == slug, Page.language_id == page_language.id, Page.status == "published")
+        base_page_query.where(
+            Page.slug == slug,
+            Page.language_id == page_language.id,
+            Page.status == "published",
+        )
     )
     if not page and page_language.id != language.id:
         page = db.scalar(
-            select(Page)
-            .options(selectinload(Page.sections).selectinload(PageSection.image))
-            .where(Page.slug == slug, Page.language_id == language.id, Page.status == "published")
+            base_page_query.where(
+                Page.slug == slug,
+                Page.language_id == language.id,
+                Page.status == "published",
+            )
         )
     if not page:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Page not found.")
+
+    if slug == "about":
+        data = _build_about_page_payload(db, page, page_language.id, language.code)
+        return _set_cached_public_payload(cache_key, data)
 
     data = _serialize(PageRead, page)
     data["sections"] = []
