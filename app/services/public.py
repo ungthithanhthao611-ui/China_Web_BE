@@ -39,13 +39,23 @@ def _serialize(schema: type, record: Any) -> dict[str, Any]:
 
 
 def get_language(db: Session, language_code: str) -> Language:
-    language = db.scalar(select(Language).where(Language.code == language_code, Language.status == "active"))
+    normalized_code = str(language_code or "").strip().lower() or "vi"
+    cache_key = _make_public_cache_key("language", normalized_code)
+    cached_payload = _get_cached_public_payload(cache_key, _PUBLIC_CACHE_TTLS["language"])
+    if cached_payload is not None:
+        cached_language = cached_payload.get("language")
+        if isinstance(cached_language, Language):
+            return cached_language
+
+    language = db.scalar(select(Language).where(Language.code == normalized_code, Language.status == "active"))
     if language:
+        _set_cached_public_payload(cache_key, {"language": language})
         return language
 
-    language = db.scalar(select(Language).where(Language.is_default.is_(True)))
-    if language:
-        return language
+    default_language = _get_default_language(db)
+    if default_language:
+        _set_cached_public_payload(cache_key, {"language": default_language})
+        return default_language
 
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No active language configured.")
 
@@ -228,10 +238,15 @@ def _build_menu_tree(items: list[MenuItem]) -> list[dict[str, Any]]:
 
 _PUBLIC_CACHE: dict[str, dict[str, Any]] = {}
 _PUBLIC_CACHE_TTLS = {
+    "language": 600,
     "bootstrap": 300,
     "site_settings": 300,
     "projects": 120,
+    "products": 120,
+    "honors": 120,
     "home_bootstrap": 120,
+    "banners": 300,
+    "page_detail": 300,
 }
 
 
@@ -372,42 +387,142 @@ def get_public_site_settings(db: Session, language_code: str) -> dict[str, Any]:
     return _set_cached_public_payload(cache_key, payload)
 
 
+def _build_home_product_preview(payload: dict[str, Any]) -> dict[str, Any]:
+    items = []
+    for item in payload.get("items", []):
+        if not isinstance(item, dict):
+            continue
+        items.append(
+            {
+                "id": item.get("id"),
+                "name": item.get("name"),
+                "slug": item.get("slug"),
+                "short_desc": item.get("short_desc"),
+                "category_name": item.get("category_name"),
+                "image_url": item.get("image_url"),
+                "images": item.get("images") or [],
+            }
+        )
+    return {
+        "items": items,
+        "pagination": payload.get("pagination") or {"skip": 0, "limit": 4, "total": 0},
+    }
+
+
+
+def _build_home_project_preview(payload: dict[str, Any]) -> dict[str, Any]:
+    items = []
+    for item in payload.get("items", []):
+        if not isinstance(item, dict):
+            continue
+        items.append(
+            {
+                "id": item.get("id"),
+                "title": item.get("title"),
+                "slug": item.get("slug"),
+                "location": item.get("location"),
+                "image_url": item.get("image_url"),
+                "image": item.get("image"),
+                "hero_image": item.get("hero_image"),
+            }
+        )
+    return {
+        "items": items,
+        "pagination": payload.get("pagination") or {"skip": 0, "limit": 4, "total": 0},
+    }
+
+
+
+def _build_home_news_preview(payload: dict[str, Any]) -> dict[str, Any]:
+    items = []
+    for item in payload.get("items", []):
+        if not isinstance(item, dict):
+            continue
+        items.append(
+            {
+                "id": item.get("id"),
+                "slug": item.get("slug"),
+                "title": item.get("title"),
+                "summary": item.get("summary"),
+                "short_desc": item.get("short_desc"),
+                "excerpt": item.get("excerpt"),
+                "thumbnail_url": item.get("thumbnail_url"),
+                "image": item.get("image"),
+                "category_name": item.get("category_name"),
+                "category": item.get("category"),
+                "topic": item.get("topic"),
+                "tag": item.get("tag"),
+                "published_at": item.get("published_at"),
+                "created_at": item.get("created_at"),
+            }
+        )
+    return {
+        "items": items,
+        "total": payload.get("total") or 0,
+        "skip": payload.get("skip") or 0,
+        "limit": payload.get("limit") or 8,
+    }
+
+
+
+def _build_home_honors_preview(payload: dict[str, Any]) -> dict[str, Any]:
+    factory_overview = payload.get("factory_overview") or {}
+    return {
+        "factory_overview": {
+            "title": factory_overview.get("title"),
+            "description": factory_overview.get("description"),
+            "main_image_url": factory_overview.get("main_image_url"),
+        }
+    }
+
+
+
 def get_home_bootstrap_payload(db: Session, language_code: str) -> dict[str, Any]:
     cache_key = _make_public_cache_key("home_bootstrap", language_code)
     cached_payload = _get_cached_public_payload(cache_key, _PUBLIC_CACHE_TTLS["home_bootstrap"])
     if cached_payload is not None:
         return cached_payload
 
+    products_payload = list_products(
+        db=db,
+        category_slug=None,
+        skip=0,
+        limit=4,
+        language_code=language_code,
+    )
+    projects_payload = list_projects(
+        db=db,
+        language_code=language_code,
+        category_slug=None,
+        year=None,
+        skip=0,
+        limit=4,
+    )
+    news_payload = list_news_posts(
+        db=db,
+        skip=0,
+        limit=8,
+        keyword=None,
+        language_code=language_code,
+    )
+    honors_payload = list_public_honors(db=db, year=None)
+
     payload = {
-        "products": list_products(
-            db=db,
-            category_slug=None,
-            skip=0,
-            limit=4,
-            language_code=language_code,
-        ),
-        "projects": list_projects(
-            db=db,
-            language_code=language_code,
-            category_slug=None,
-            year=None,
-            skip=0,
-            limit=4,
-        ),
-        "news": list_news_posts(
-            db=db,
-            skip=0,
-            limit=8,
-            keyword=None,
-            language_code=language_code,
-        ),
-        "honors": list_public_honors(db=db, year=None),
+        "products": _build_home_product_preview(products_payload),
+        "projects": _build_home_project_preview(projects_payload),
+        "news": _build_home_news_preview(news_payload),
+        "honors": _build_home_honors_preview(honors_payload),
     }
 
     return _set_cached_public_payload(cache_key, payload)
 
 
 def list_banners(db: Session, language_code: str, banner_type: str | None) -> list[dict[str, Any]]:
+    cache_key = _make_public_cache_key("banners", language_code, banner_type)
+    cached_payload = _get_cached_public_payload(cache_key, _PUBLIC_CACHE_TTLS["banners"])
+    if cached_payload is not None:
+        return cached_payload["items"]
+
     language = get_language(db, language_code)
     query = (
         select(Banner)
@@ -424,10 +539,16 @@ def list_banners(db: Session, language_code: str, banner_type: str | None) -> li
         data = _serialize(BannerRead, banner)
         data["image"] = _serialize_media(banner.image)
         payload.append(data)
+    _set_cached_public_payload(cache_key, {"items": payload})
     return payload
 
 
 def get_page_detail(db: Session, slug: str, language_code: str) -> dict[str, Any]:
+    cache_key = _make_public_cache_key("page_detail", slug, language_code)
+    cached_payload = _get_cached_public_payload(cache_key, _PUBLIC_CACHE_TTLS["page_detail"])
+    if cached_payload is not None:
+        return cached_payload
+
     language = get_language(db, language_code)
     page_language = language
     if slug == "about" and language.code in {"en", "zh"}:
@@ -456,7 +577,7 @@ def get_page_detail(db: Session, slug: str, language_code: str) -> dict[str, Any
         data["sections"].append(section_data)
     data["blocks"] = _content_blocks(db, "page", page.id, page_language.id, language.code)
     data["gallery"] = _entity_gallery(db, "page", page.id)
-    return data
+    return _set_cached_public_payload(cache_key, data)
 
 
 
@@ -490,7 +611,12 @@ def list_projects(
 
     items_query = (
         select(Project)
-        .options(selectinload(Project.image), selectinload(Project.hero_image), selectinload(Project.category))
+        .options(
+            selectinload(Project.image),
+            selectinload(Project.hero_image),
+            selectinload(Project.category),
+            selectinload(Project.project_products).selectinload(ProjectProduct.product),
+        )
         .where(*project_filters)
     )
     if category_join_required:
@@ -869,14 +995,20 @@ def list_products(
     limit: int,
     language_code: str = "en",
 ) -> dict[str, Any]:
+    normalized_category_slug = str(category_slug or "").strip() or None
+    cache_key = _make_public_cache_key("products", language_code, normalized_category_slug, skip, limit)
+    cached_payload = _get_cached_public_payload(cache_key, _PUBLIC_CACHE_TTLS["products"])
+    if cached_payload is not None:
+        return cached_payload
+
     base_query = (
         select(Product)
         .options(selectinload(Product.images), selectinload(Product.category))
         .where(Product.is_active.is_(True))
     )
-    if category_slug and category_slug != "tat-ca":
+    if normalized_category_slug and normalized_category_slug != "tat-ca":
         selected_category = db.scalar(
-            select(ProductCategory).where(ProductCategory.slug == category_slug)
+            select(ProductCategory).where(ProductCategory.slug == normalized_category_slug)
         )
         if not selected_category:
             return {"items": [], "pagination": {"skip": skip, "limit": limit, "total": 0}}
@@ -928,7 +1060,8 @@ def list_products(
         data["gallery_urls"] = "\n".join(image["url"] for image in related_images)
         payload.append(data)
 
-    return {"items": payload, "pagination": {"skip": skip, "limit": limit, "total": total or 0}}
+    response_payload = {"items": payload, "pagination": {"skip": skip, "limit": limit, "total": total or 0}}
+    return _set_cached_public_payload(cache_key, response_payload)
 
 
 def _get_linked_product_video_url(db: Session, product_id: int | None) -> str | None:

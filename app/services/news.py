@@ -1,4 +1,5 @@
 import json
+import time
 from typing import Any
 
 from sqlalchemy import func, select
@@ -58,6 +59,33 @@ def _serialize_public_post(record: NewsPost, language_code: str = "vi") -> dict[
     return payload
 
 
+_PUBLIC_NEWS_CACHE: dict[str, dict[str, Any]] = {}
+_PUBLIC_NEWS_CACHE_TTL = 120
+
+
+def _build_news_cache_key(
+    *,
+    skip: int,
+    limit: int,
+    keyword: str | None,
+    status: str | None,
+    language_code: str,
+) -> str:
+    normalized_keyword = str(keyword or "").strip().lower()
+    normalized_status = str(status or "").strip().lower()
+    normalized_language = str(language_code or "vi").strip().lower() or "vi"
+    return "::".join(
+        [
+            "news",
+            normalized_language,
+            normalized_status or "__all__",
+            normalized_keyword or "__none__",
+            str(skip),
+            str(limit),
+        ]
+    )
+
+
 def list_news_posts(
     db: Session,
     *,
@@ -68,6 +96,19 @@ def list_news_posts(
     language_code: str = "vi",
 ) -> dict[str, Any]:
     """Danh sách bài viết public (chỉ published, chưa soft-delete)."""
+    cache_key = _build_news_cache_key(
+        skip=skip,
+        limit=limit,
+        keyword=keyword,
+        status=status,
+        language_code=language_code,
+    )
+    cached_payload = _PUBLIC_NEWS_CACHE.get(cache_key)
+    if cached_payload is not None:
+        if time.time() - cached_payload["timestamp"] < _PUBLIC_NEWS_CACHE_TTL:
+            return cached_payload["data"]
+        _PUBLIC_NEWS_CACHE.pop(cache_key, None)
+
     query = select(NewsPost).where(
         NewsPost.status == "published",
         NewsPost.deleted_at.is_(None),
@@ -90,12 +131,17 @@ def list_news_posts(
         .limit(limit)
     ).all()
 
-    return {
+    payload = {
         "items": [_serialize_public_post(p, language_code=language_code) for p in posts],
         "total": total,
         "skip": skip,
         "limit": limit,
     }
+    _PUBLIC_NEWS_CACHE[cache_key] = {
+        "data": payload,
+        "timestamp": time.time(),
+    }
+    return payload
 
 
 def get_news_post_detail(db: Session, *, slug: str, language_code: str = "vi") -> dict[str, Any]:

@@ -1,5 +1,6 @@
 import json
 import re
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -30,6 +31,8 @@ DISPLAY_TYPES = {
 }
 
 CLOUDINARY_URL_PREFIX = "https://res.cloudinary.com/"
+_PUBLIC_HONORS_CACHE: dict[str, dict[str, Any]] = {}
+_PUBLIC_HONORS_CACHE_TTL = 120
 
 
 def _now() -> datetime:
@@ -729,6 +732,13 @@ def _category_label(record: Honor) -> str:
 
 
 def list_public_honors(db: Session, *, year: int | None = None) -> dict[str, Any]:
+    cache_key = f"honors::{year if year is not None else '__all__'}"
+    cached_payload = _PUBLIC_HONORS_CACHE.get(cache_key)
+    if cached_payload is not None:
+        if time.time() - cached_payload["timestamp"] < _PUBLIC_HONORS_CACHE_TTL:
+            return cached_payload["data"]
+        _PUBLIC_HONORS_CACHE.pop(cache_key, None)
+
     settings_map = _site_settings_map(db)
     contact = _select_capability_contact(db)
 
@@ -843,7 +853,7 @@ def list_public_honors(db: Session, *, year: int | None = None) -> dict[str, Any
 
     production_capabilities = _build_production_capabilities(settings_map)
 
-    return {
+    payload = {
         "hero_banner": hero_banner,
         "hero_banners": hero_banners,
         "capability_hero_banners_json": json.dumps(hero_banners, ensure_ascii=False),
@@ -864,3 +874,9 @@ def list_public_honors(db: Session, *, year: int | None = None) -> dict[str, Any
         "sections": grouped,
         "items": certificates,
     }
+
+    _PUBLIC_HONORS_CACHE[cache_key] = {
+        "data": payload,
+        "timestamp": time.time(),
+    }
+    return payload
