@@ -15,6 +15,7 @@ from app.models.user import User
 router = APIRouter(dependencies=[Depends(require_admin_user)])
 
 VN_TZ = timezone(timedelta(hours=7))
+LOW_STOCK_THRESHOLD = 10
 
 
 def _parse_dashboard_range(
@@ -87,6 +88,17 @@ def _collect_revenue_series(db: Session, start_dt: datetime, end_dt: datetime) -
         "labels": labels,
         "revenues": revenues,
         "total": total,
+    }
+
+
+def _serialize_stock_product(product: Product) -> dict[str, Any]:
+    return {
+        "id": int(product.id),
+        "name": product.name,
+        "sku": product.sku or "---",
+        "stock_quantity": int(product.stock_quantity or 0),
+        "image_url": product.image_url or "",
+        "is_active": bool(product.is_active),
     }
 
 
@@ -236,7 +248,26 @@ def get_dashboard_stats(
             pct = round((count / total_orders_for_pct) * 100, 1)
             order_stats.append({"key": status_key, "value": pct, "color": color, "count": count})
 
-    out_of_stock = db.query(func.count(Product.id)).filter(Product.stock_quantity <= 0).scalar() or 0
+    low_stock_products_db = (
+        db.query(Product)
+        .filter(Product.stock_quantity > 0, Product.stock_quantity <= LOW_STOCK_THRESHOLD)
+        .order_by(Product.stock_quantity.asc(), Product.updated_at.desc())
+        .limit(12)
+        .all()
+    )
+    out_of_stock_products_db = (
+        db.query(Product)
+        .filter(Product.stock_quantity <= 0)
+        .order_by(Product.updated_at.desc())
+        .limit(12)
+        .all()
+    )
+
+    low_stock_products = [_serialize_stock_product(product) for product in low_stock_products_db]
+    out_of_stock_products = [_serialize_stock_product(product) for product in out_of_stock_products_db]
+    out_of_stock = len(out_of_stock_products)
+    low_stock_count = len(low_stock_products)
+
     new_customers = (
         db.query(func.count(User.id))
         .filter(
@@ -263,8 +294,14 @@ def get_dashboard_stats(
         "orderStats": order_stats,
         "quickStats": [
             {"key": "out_of_stock", "value": out_of_stock, "tone": "danger"},
+            {"key": "low_stock", "value": low_stock_count, "tone": "warning"},
             {"key": "new_customers", "value": new_customers, "tone": "success"},
             {"key": "posts", "value": posts, "tone": "info"},
             {"key": "videos", "value": videos, "tone": "blue"},
         ],
+        "inventory": {
+            "lowStockThreshold": LOW_STOCK_THRESHOLD,
+            "lowStockProducts": low_stock_products,
+            "outOfStockProducts": out_of_stock_products,
+        },
     }
