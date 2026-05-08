@@ -353,6 +353,22 @@ def _set_cached_public_payload(cache_key: str, data: dict[str, Any]) -> dict[str
     return data
 
 
+def invalidate_public_cache(*prefixes: str) -> None:
+    normalized_prefixes = [str(prefix or "").strip() for prefix in prefixes if str(prefix or "").strip()]
+    if not normalized_prefixes:
+        _PUBLIC_CACHE.clear()
+        return
+
+    keys_to_remove = [
+        cache_key
+        for cache_key in list(_PUBLIC_CACHE.keys())
+        if any(cache_key == prefix or cache_key.startswith(f"{prefix}::") for prefix in normalized_prefixes)
+    ]
+    for cache_key in keys_to_remove:
+        _PUBLIC_CACHE.pop(cache_key, None)
+
+
+
 def get_bootstrap_payload(db: Session, language_code: str) -> dict[str, Any]:
     cache_key = _make_public_cache_key("bootstrap", language_code)
     cached_payload = _get_cached_public_payload(cache_key, _PUBLIC_CACHE_TTLS["bootstrap"])

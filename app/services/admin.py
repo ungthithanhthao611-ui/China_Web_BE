@@ -28,6 +28,7 @@ from app.services.product_pricing import (
     decorate_product_pricing_payload,
     normalize_product_pricing_input,
 )
+from app.services.public import invalidate_public_cache
 from app.utils.contact_maps import normalize_contact_payload
 from app.services.translator import smart_translate
 
@@ -677,6 +678,10 @@ def create_entity_record(db: Session, entity_name: str, payload: dict[str, Any])
     except IntegrityError:
         db.rollback()
         _raise_friendly_write_integrity_error(entity_name)
+
+    if entity_name == "banners":
+        invalidate_public_cache()
+
     return get_entity_record(db=db, entity_name=entity_name, record_id=record.id)
 
 
@@ -741,6 +746,10 @@ def update_entity_record(db: Session, entity_name: str, record_id: int, payload:
     except IntegrityError:
         db.rollback()
         _raise_friendly_write_integrity_error(entity_name)
+
+    if entity_name == "banners":
+        invalidate_public_cache()
+
     return get_entity_record(db=db, entity_name=entity_name, record_id=record_id)
 
 
@@ -774,6 +783,9 @@ def delete_entity_record(db: Session, entity_name: str, record_id: int) -> None:
     except IntegrityError:
         db.rollback()
         _raise_friendly_delete_integrity_error(entity_name=entity_name, record=record)
+
+    if entity_name == "banners":
+        invalidate_public_cache()
 
 
 def _language_by_code(db: Session, code: str) -> Language | None:
