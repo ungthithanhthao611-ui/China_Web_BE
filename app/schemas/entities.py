@@ -329,6 +329,9 @@ class BannerCreate(BaseModel):
     title: str | None = None
     subtitle: str | None = None
     body: str | None = None
+    show_title: bool = False
+    show_subtitle: bool = False
+    show_body: bool = False
     image_id: int | None = None
     link: str | None = None
     button_text: str | None = None
@@ -345,6 +348,9 @@ class BannerUpdate(BaseModel):
     title: str | None = None
     subtitle: str | None = None
     body: str | None = None
+    show_title: bool | None = None
+    show_subtitle: bool | None = None
+    show_body: bool | None = None
     image_id: int | None = None
     link: str | None = None
     button_text: str | None = None
@@ -362,6 +368,9 @@ class BannerRead(ORMModel):
     title: str | None
     subtitle: str | None
     body: str | None
+    show_title: bool
+    show_subtitle: bool
+    show_body: bool
     image_id: int | None
     link: str | None
     button_text: str | None

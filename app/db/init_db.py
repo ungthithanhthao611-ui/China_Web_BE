@@ -22,6 +22,7 @@ def initialize_database() -> None:
     # Create tables
     Base.metadata.create_all(bind=engine)
     ensure_admin_user_schema()
+    ensure_banner_schema()
     
     with SessionLocal() as session:
         try:
@@ -57,6 +58,29 @@ def ensure_admin_user_schema() -> None:
         statements.append("ALTER TABLE admin_users ADD COLUMN phone VARCHAR(32)")
     if "avatar_url" not in existing_columns:
         statements.append("ALTER TABLE admin_users ADD COLUMN avatar_url VARCHAR(1000)")
+
+    if not statements:
+        return
+
+    with engine.begin() as connection:
+        for statement in statements:
+            connection.execute(text(statement))
+
+
+def ensure_banner_schema() -> None:
+    inspector = inspect(engine)
+    if "banners" not in inspector.get_table_names():
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("banners")}
+    statements: list[str] = []
+
+    if "show_title" not in existing_columns:
+        statements.append("ALTER TABLE banners ADD COLUMN show_title BOOLEAN NOT NULL DEFAULT FALSE")
+    if "show_subtitle" not in existing_columns:
+        statements.append("ALTER TABLE banners ADD COLUMN show_subtitle BOOLEAN NOT NULL DEFAULT FALSE")
+    if "show_body" not in existing_columns:
+        statements.append("ALTER TABLE banners ADD COLUMN show_body BOOLEAN NOT NULL DEFAULT FALSE")
 
     if not statements:
         return
