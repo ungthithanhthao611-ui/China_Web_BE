@@ -1,5 +1,8 @@
 import logging
-from typing import Dict, List, Optional
+import threading
+import unicodedata
+from functools import lru_cache
+from typing import Dict, List
 
 # Attempt to import deep_translator for professional translation
 try:
@@ -10,7 +13,7 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-# Fallback Dictionary (from Phase 1 logic) to ensure quality for common terms
+# Fallback Dictionary (Phase 1 logic) ensures quality on common keywords.
 MATERIAL_MAP = {
     "da phien": {"en": "Slate", "zh": "板岩"},
     "da thach anh": {"en": "Quartz", "zh": "石英"},
@@ -29,60 +32,82 @@ MATERIAL_MAP = {
     "da mem": {"en": "Flexible Stone", "zh": "软石"},
 }
 
+
+# ──────────────────────────────────────────────────────────────────────────
+# Helpers
+# ──────────────────────────────────────────────────────────────────────────
 def normalize_text(text: str) -> str:
-    import unicodedata
-    if not text: return ""
+    """Strip diacritics + lowercase to match against MATERIAL_MAP keys."""
+    if not text:
+        return ""
     text = str(text)
-    # Remove diacritics
-    nfkd_form = unicodedata.normalize('NFKD', text)
-    return "".join([c for c in nfkd_form if not unicodedata.combining(c)]).lower().strip()
+    nfkd_form = unicodedata.normalize("NFKD", text)
+    return "".join(c for c in nfkd_form if not unicodedata.combining(c)).lower().strip()
+
+
+# Lock to serialize concurrent calls into the same translator instance
+# (deep_translator's internal session is not strictly thread-safe).
+_TRANSLATOR_LOCK = threading.Lock()
+
+
+def _call_google(text: str, target_lang: str) -> str:
+    """Single Google Translate API call with mapped lang code."""
+    google_lang = "zh-CN" if target_lang == "zh" else target_lang
+    with _TRANSLATOR_LOCK:
+        return GoogleTranslator(source="vi", target=google_lang).translate(text)
+
+
+# In-memory cache. (text, lang) -> translated text.
+# Limits memory usage; identical strings (eg. category, material) translate once.
+@lru_cache(maxsize=2048)
+def _cached_translate(text: str, target_lang: str) -> str:
+    """Cached wrapper around _call_google. Falls back to original on error."""
+    if not HAS_DEEP_TRANSLATOR:
+        return text.upper() if target_lang == "en" else text
+    try:
+        translated = _call_google(text, target_lang)
+        return translated or text
+    except Exception as exc:  # noqa: BLE001
+        logger.error("Google translate error (%s): %s", target_lang, exc)
+        return text.upper() if target_lang == "en" else text
+
 
 def smart_translate(text: str, target_lang: str) -> str:
     """
-    Combines Dictionary-based translation with professional API fallback.
+    Combine dictionary-based translation with cached Google fallback.
     """
-    if not text: return ""
-    if target_lang == "vi": return text
-    
-    # 1. Try Dictionary Match (Fast & High Quality for keywords)
+    if not text:
+        return ""
+    if target_lang == "vi":
+        return text
+
+    # 1) Dictionary match (fast, high quality for keywords).
     normalized = normalize_text(text)
     for key, trans in MATERIAL_MAP.items():
-        if key in normalized:
-            # Replace the keyword in the original text or just return the mapped value
-            # For product names like "Đá phiến đen", it might be better to translate the whole thing
-            # but for now let's just return the mapped value if it's a simple term
-            if len(normalized) < len(key) + 5:
-                return trans.get(target_lang, text)
+        if key in normalized and len(normalized) < len(key) + 5:
+            return trans.get(target_lang, text)
 
-    # 2. Try Professional API (if library installed)
-    if HAS_DEEP_TRANSLATOR:
-        try:
-            # Convert 'zh' to 'zh-CN' for Google
-            google_lang = "zh-CN" if target_lang == "zh" else target_lang
-            translated = GoogleTranslator(source='vi', target=google_lang).translate(text)
-            if translated:
-                return translated
-        except Exception as e:
-            logger.error(f"Translation error: {e}")
+    # 2) Cached professional API.
+    return _cached_translate(text, target_lang)
 
-    # 3. Fallback: Return original or normalized
-    return text.upper() if target_lang == "en" else text
 
-def translate_object_fields(obj_data: Dict, fields_to_translate: List[str], target_langs: List[str] = ["en", "zh"]) -> Dict:
+def translate_object_fields(
+    obj_data: Dict,
+    fields_to_translate: List[str],
+    target_langs: List[str] = ("en", "zh"),
+) -> Dict:
     """
-    Translates specified fields in a dictionary and adds localized keys.
-    Example: name -> name_en, name_zh
+    Translate specified fields and add `<field>_<lang>` keys when missing.
     """
     result = obj_data.copy()
     for field in fields_to_translate:
         val = obj_data.get(field)
         if not val or not isinstance(val, str):
             continue
-            
+
         for lang in target_langs:
             key = f"{field}_{lang}"
-            # Only translate if not already set or empty
             if not result.get(key):
                 result[key] = smart_translate(val, lang)
-                
+
     return result

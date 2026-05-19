@@ -1,6 +1,7 @@
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
+from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -205,11 +206,15 @@ def create_entity(
 
 
 @router.post("/{entity_name}/translate-preview")
-def auto_translate_entity_payload(
+async def auto_translate_entity_payload(
     entity_name: str,
     payload: dict[str, Any],
 ) -> dict[str, Any]:
-    return auto_translate_payload(entity_name=entity_name, payload=payload)
+    # Off-load to threadpool because the translator does blocking I/O.
+    # This keeps the FastAPI event loop free to serve other requests.
+    return await run_in_threadpool(
+        auto_translate_payload, entity_name=entity_name, payload=payload
+    )
 
 
 @router.get("/{entity_name}/{record_id}")
@@ -238,9 +243,12 @@ def delete_entity(entity_name: str, record_id: int, db: Session = Depends(get_db
 
 
 @router.post("/{entity_name}/{record_id}/translate")
-def auto_translate_entity(
+async def auto_translate_entity(
     entity_name: str,
     record_id: int,
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
-    return auto_translate_record(db=db, entity_name=entity_name, record_id=record_id)
+    return await run_in_threadpool(
+        auto_translate_record, db=db, entity_name=entity_name, record_id=record_id
+    )
+

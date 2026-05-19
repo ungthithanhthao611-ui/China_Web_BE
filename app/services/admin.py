@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from fastapi import HTTPException, status
@@ -935,72 +936,132 @@ def _auto_translate_project_record(db: Session, record: Project) -> dict[str, An
     }
 
 
+# Map of entity_name -> source fields that should be auto-translated.
+# Centralized so both record-level and payload-level translation share it.
+TRANSLATABLE_FIELDS_MAP: dict[str, list[str]] = {
+    "products": ["name", "short_desc", "full_desc", "size", "material", "color", "use_case"],
+    "product_categories": ["name", "description"],
+    "projects": ["title", "summary", "body", "location", "meta_title", "meta_description"],
+    "news_posts": ["title", "summary", "content", "meta_title", "meta_description"],
+    "content_block_items": ["title", "subtitle", "content"],
+}
+TRANSLATION_TARGET_LANGS: tuple[str, ...] = ("en", "zh")
+
+
+def _build_translation_jobs(
+    fields: list[str],
+    source_lookup,
+    *,
+    skip_if_filled,
+) -> list[tuple[str, str, str]]:
+    """
+    Build (field, lang, source_text) jobs for parallel translation.
+
+    `source_lookup(field)` returns the source text (or None).
+    `skip_if_filled(field, lang)` returns True if target already has data
+    so we shouldn't overwrite.
+    """
+    jobs: list[tuple[str, str, str]] = []
+    for field in fields:
+        source_val = source_lookup(field)
+        if not source_val or not isinstance(source_val, str):
+            continue
+        for lang in TRANSLATION_TARGET_LANGS:
+            if skip_if_filled(field, lang):
+                continue
+            jobs.append((field, lang, source_val))
+    return jobs
+
+
+def _run_translation_jobs(
+    jobs: list[tuple[str, str, str]],
+) -> list[tuple[str, str, str]]:
+    """
+    Execute translation jobs in parallel and return
+    a list of (field, lang, translated_text).
+    Empty job list -> empty result, no thread pool created.
+    """
+    if not jobs:
+        return []
+
+    # Cap workers to avoid hammering Google with too many sockets at once.
+    max_workers = min(8, len(jobs))
+    results: list[tuple[str, str, str]] = []
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        future_map = {
+            pool.submit(smart_translate, source_val, lang): (field, lang)
+            for field, lang, source_val in jobs
+        }
+        for future in future_map:
+            field, lang = future_map[future]
+            try:
+                translated = future.result(timeout=20)
+            except Exception:  # noqa: BLE001
+                # smart_translate already swallows errors, but guard the
+                # future itself (eg. timeout) to keep the batch alive.
+                translated = ""
+            results.append((field, lang, translated))
+    return results
+
+
 def auto_translate_record(db: Session, entity_name: str, record_id: int) -> dict[str, Any]:
-    if entity_name not in ["products", "product_categories", "news_posts", "content_block_items", "projects"]:
+    if entity_name not in TRANSLATABLE_FIELDS_MAP:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Auto-translation is not supported for entity '{entity_name}'."
+            detail=f"Auto-translation is not supported for entity '{entity_name}'.",
         )
-    
+
     registration = get_registration(entity_name)
     record = db.get(registration.model, record_id)
     if not record:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Record not found.")
 
-    # Fields to translate
-    fields_map = {
-        "products": ["name", "short_desc", "full_desc", "size", "material", "color", "use_case"],
-        "product_categories": ["name", "description"],
-        "projects": ["title", "summary", "body", "location", "meta_title", "meta_description"],
-        "news_posts": ["title", "summary", "content", "meta_title", "meta_description"],
-        "content_block_items": ["title", "subtitle", "content"],
-    }
-    
-    fields = fields_map.get(entity_name, [])
-    target_langs = ["en", "zh"]
-    
-    for field in fields:
-        source_val = getattr(record, field, None)
-        if not source_val or not isinstance(source_val, str):
-            continue
-            
-        for lang in target_langs:
-            target_attr = f"{field}_{lang}"
-            if hasattr(record, target_attr):
-                # Only translate if target is empty
-                current_val = getattr(record, target_attr, None)
-                if not current_val or not str(current_val).strip():
-                    translated = smart_translate(source_val, lang)
-                    setattr(record, target_attr, translated)
-    
+    fields = TRANSLATABLE_FIELDS_MAP[entity_name]
+
+    def _source_lookup(field: str):
+        return getattr(record, field, None)
+
+    def _skip_if_filled(field: str, lang: str) -> bool:
+        target_attr = f"{field}_{lang}"
+        if not hasattr(record, target_attr):
+            return True
+        current = getattr(record, target_attr, None)
+        return bool(current and str(current).strip())
+
+    jobs = _build_translation_jobs(fields, _source_lookup, skip_if_filled=_skip_if_filled)
+    for field, lang, translated in _run_translation_jobs(jobs):
+        target_attr = f"{field}_{lang}"
+        if translated and hasattr(record, target_attr):
+            setattr(record, target_attr, translated)
+
     db.add(record)
     db.commit()
     return get_entity_record(db=db, entity_name=entity_name, record_id=record_id)
 
 
 def auto_translate_payload(entity_name: str, payload: dict[str, Any]) -> dict[str, Any]:
-    if entity_name not in ["products", "product_categories", "projects", "news_posts", "content_block_items"]:
+    if entity_name not in TRANSLATABLE_FIELDS_MAP:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Auto-translation is not supported for entity '{entity_name}'.",
         )
 
-    fields_map = {
-        "products": ["name", "short_desc", "full_desc", "size", "material", "color", "use_case"],
-        "product_categories": ["name", "description"],
-        "projects": ["title", "summary", "body", "location", "meta_title", "meta_description"],
-        "news_posts": ["title", "summary", "content", "meta_title", "meta_description"],
-        "content_block_items": ["title", "subtitle", "content"],
-    }
-
     result = dict(payload or {})
-    for field in fields_map.get(entity_name, []):
-        source_val = result.get(field)
-        if not source_val or not isinstance(source_val, str):
-            continue
+    fields = TRANSLATABLE_FIELDS_MAP[entity_name]
 
-        for lang in ["en", "zh"]:
-            target_attr = f"{field}_{lang}"
-            result[target_attr] = smart_translate(source_val, lang)
+    def _source_lookup(field: str):
+        return result.get(field)
+
+    def _skip_if_filled(_field: str, _lang: str) -> bool:
+        # Payload (preview) flow: always re-translate so the editor can see
+        # the latest output. The translator itself is cached, so identical
+        # texts are essentially free.
+        return False
+
+    jobs = _build_translation_jobs(fields, _source_lookup, skip_if_filled=_skip_if_filled)
+    for field, lang, translated in _run_translation_jobs(jobs):
+        if translated:
+            result[f"{field}_{lang}"] = translated
 
     return result
+
