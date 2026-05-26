@@ -38,6 +38,9 @@ def seed_products(session: Session) -> None:
         p.sku: p for p in session.scalars(select(Product)).all() if p.sku
     }
 
+    # SKU gạch thẻ dùng kích thước 60x240mm, còn lại dùng 600x1200mm
+    gach_the_skus = {"OS.16", "OS.17"}
+
     for idx, (sku, name, price, sale_price, stock_quantity) in enumerate(products_data):
         slug = f"da-mem-{sku.lower().replace('.', '-')}"
         sort_order = (idx + 1) * 10
@@ -53,6 +56,12 @@ def seed_products(session: Session) -> None:
             session.add(existing)
             continue
 
+        # Xác định kích thước theo loại sản phẩm
+        if sku in gach_the_skus:
+            size = "60x240mm (Kích thước mẫu)"
+        else:
+            size = "600x1200mm (Kích thước mẫu)"
+
         product = Product(
             category_id=category.id,
             sku=sku,
@@ -60,7 +69,7 @@ def seed_products(session: Session) -> None:
             slug=slug,
             short_desc=f"{name} là dòng đá mềm ốp tường linh hoạt cao cấp của Thiên Đông Việt Nam.",
             full_desc="Sản phẩm được làm từ bột đá thiên nhiên kết hợp với polymer cao cấp, mang đến sự linh hoạt, bền bỉ và thẩm mỹ cao cho mọi công trình.",
-            size="60x240mm (Kích thước mẫu)",
+            size=size,
             material="Bột đá tự nhiên & Polymer",
             price=price,
             original_price=price,
