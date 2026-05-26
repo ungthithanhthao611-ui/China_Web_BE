@@ -208,9 +208,66 @@ def _serialize_about_sections(page: Page) -> list[dict[str, Any]]:
     return payload
 
 
+def _about_item_has_image(item: dict[str, Any]) -> bool:
+    image = item.get("image")
+    if isinstance(image, dict) and image.get("url"):
+        return True
+
+    metadata = item.get("metadata_json")
+    if isinstance(metadata, dict):
+        return bool(metadata.get("src") or metadata.get("image_url") or metadata.get("image"))
+
+    return False
+
+
+def _about_item_has_text(item: dict[str, Any]) -> bool:
+    return any(str(item.get(field) or "").strip() for field in ("title", "subtitle", "content"))
+
+
+def _about_item_score(item: dict[str, Any]) -> tuple[int, int, str, int]:
+    updated_at = str(item.get("updated_at") or "")
+    item_id = int(item.get("id") or 0)
+    return (
+        1 if _about_item_has_image(item) else 0,
+        1 if _about_item_has_text(item) else 0,
+        updated_at,
+        item_id,
+    )
+
+
+def _prefer_about_item(current: dict[str, Any] | None, candidate: dict[str, Any]) -> dict[str, Any]:
+    if current is None:
+        return candidate
+    return candidate if _about_item_score(candidate) >= _about_item_score(current) else current
+
+
+def _merge_about_blocks_by_key(blocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    merged_by_key: dict[str, dict[str, Any]] = {}
+    ordered_keys: list[str] = []
+
+    for block in blocks:
+        block_key = str(block.get("block_key") or "").strip()
+        if not block_key:
+            continue
+
+        if block_key not in merged_by_key:
+            merged_by_key[block_key] = {**block, "items": []}
+            ordered_keys.append(block_key)
+        else:
+            merged = merged_by_key[block_key]
+            for field in ("title", "subtitle", "content", "block_type"):
+                if not merged.get(field) and block.get(field):
+                    merged[field] = block.get(field)
+            merged["sort_order"] = min(int(merged.get("sort_order") or 0), int(block.get("sort_order") or 0))
+
+        merged_by_key[block_key]["items"].extend(block.get("items") or [])
+
+    return [merged_by_key[key] for key in ordered_keys]
+
+
 def _serialize_about_blocks(blocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
     payload: list[dict[str, Any]] = []
-    for block in blocks:
+    for block in _merge_about_blocks_by_key(blocks):
         block_data = {
             "block_key": block.get("block_key"),
             "title": block.get("title"),
@@ -220,19 +277,25 @@ def _serialize_about_blocks(blocks: list[dict[str, Any]]) -> list[dict[str, Any]
             "sort_order": block.get("sort_order"),
             "items": [],
         }
+
+        preferred_items: dict[str, dict[str, Any]] = {}
         for item in block.get("items", []):
-            block_data["items"].append(
-                {
-                    "item_key": item.get("item_key"),
-                    "title": item.get("title"),
-                    "subtitle": item.get("subtitle"),
-                    "content": item.get("content"),
-                    "link": item.get("link"),
-                    "metadata_json": item.get("metadata_json"),
-                    "sort_order": item.get("sort_order"),
-                    "image": _serialize_about_media(item.get("image")) if isinstance(item.get("image"), MediaAsset) else item.get("image"),
-                }
-            )
+            item_key = str(item.get("item_key") or "").strip() or f"item:{item.get('id') or len(preferred_items)}"
+            preferred_items[item_key] = _prefer_about_item(preferred_items.get(item_key), item)
+
+        for item in sorted(preferred_items.values(), key=lambda row: (int(row.get("sort_order") or 0), int(row.get("id") or 0))):
+            block_data["items"].append({
+                "id": item.get("id"),
+                "item_key": item.get("item_key"),
+                "title": item.get("title"),
+                "subtitle": item.get("subtitle"),
+                "content": item.get("content"),
+                "link": item.get("link"),
+                "metadata_json": item.get("metadata_json"),
+                "sort_order": item.get("sort_order"),
+                "updated_at": item.get("updated_at"),
+                "image": _serialize_about_media(item.get("image")) if isinstance(item.get("image"), MediaAsset) else item.get("image"),
+            })
         payload.append(block_data)
     return payload
 

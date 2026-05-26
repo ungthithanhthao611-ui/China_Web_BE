@@ -60,7 +60,7 @@ def seed_products(session: Session) -> None:
             slug=slug,
             short_desc=f"{name} là dòng đá mềm ốp tường linh hoạt cao cấp của Thiên Đông Việt Nam.",
             full_desc="Sản phẩm được làm từ bột đá thiên nhiên kết hợp với polymer cao cấp, mang đến sự linh hoạt, bền bỉ và thẩm mỹ cao cho mọi công trình.",
-            size="600x1200mm (Kích thước mẫu)",
+            size="60x240mm (Kích thước mẫu)",
             material="Bột đá tự nhiên & Polymer",
             price=price,
             original_price=price,

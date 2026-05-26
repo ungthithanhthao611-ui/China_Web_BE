@@ -49,6 +49,21 @@ def get_registration(entity_name: str) -> EntityRegistration:
     return registration
 
 
+PUBLIC_CACHE_ENTITY_NAMES = {
+    "banners",
+    "content_blocks",
+    "content_block_items",
+    "media_assets",
+    "page_sections",
+    "pages",
+    "site_settings",
+}
+
+
+def _entity_affects_public_cache(entity_name: str) -> bool:
+    return str(entity_name or "").strip().lower() in PUBLIC_CACHE_ENTITY_NAMES
+
+
 def _clean_text(value: Any) -> str:
     return str(value or "").strip().lower()
 
@@ -680,7 +695,7 @@ def create_entity_record(db: Session, entity_name: str, payload: dict[str, Any])
         db.rollback()
         _raise_friendly_write_integrity_error(entity_name)
 
-    if entity_name == "banners":
+    if _entity_affects_public_cache(entity_name):
         invalidate_public_cache()
 
     return get_entity_record(db=db, entity_name=entity_name, record_id=record.id)
@@ -748,7 +763,7 @@ def update_entity_record(db: Session, entity_name: str, record_id: int, payload:
         db.rollback()
         _raise_friendly_write_integrity_error(entity_name)
 
-    if entity_name == "banners":
+    if _entity_affects_public_cache(entity_name):
         invalidate_public_cache()
 
     return get_entity_record(db=db, entity_name=entity_name, record_id=record_id)
@@ -785,7 +800,7 @@ def delete_entity_record(db: Session, entity_name: str, record_id: int) -> None:
         db.rollback()
         _raise_friendly_delete_integrity_error(entity_name=entity_name, record=record)
 
-    if entity_name == "banners":
+    if _entity_affects_public_cache(entity_name):
         invalidate_public_cache()
 
 
