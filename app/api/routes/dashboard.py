@@ -9,7 +9,7 @@ from app.api.deps import get_db, require_admin_user
 from app.models.media import MediaAsset
 from app.models.news import NewsPost
 from app.models.orders import Order, OrderItem
-from app.models.products import Product
+from app.models.products import Product, ContactInquiry
 from app.models.user import User
 
 router = APIRouter(dependencies=[Depends(require_admin_user)])
@@ -123,39 +123,21 @@ def get_dashboard_stats(
     prev_end_dt = start_dt - timedelta(microseconds=1)
     prev_start_dt = start_dt - delta
 
-    total_orders = (
-        db.query(func.count(Order.id))
-        .filter(Order.placed_at >= start_dt, Order.placed_at <= end_dt)
+    total_inquiries = (
+        db.query(func.count(ContactInquiry.id))
+        .filter(ContactInquiry.created_at >= start_dt, ContactInquiry.created_at <= end_dt)
         .scalar()
         or 0
     )
-    prev_total_orders = (
-        db.query(func.count(Order.id))
-        .filter(Order.placed_at >= prev_start_dt, Order.placed_at <= prev_end_dt)
+    prev_total_inquiries = (
+        db.query(func.count(ContactInquiry.id))
+        .filter(ContactInquiry.created_at >= prev_start_dt, ContactInquiry.created_at <= prev_end_dt)
         .scalar()
         or 0
     )
 
-    total_revenue = (
-        db.query(func.sum(Order.total_amount))
-        .filter(
-            Order.status == "completed",
-            Order.placed_at >= start_dt,
-            Order.placed_at <= end_dt,
-        )
-        .scalar()
-        or 0.0
-    )
-    prev_total_revenue = (
-        db.query(func.sum(Order.total_amount))
-        .filter(
-            Order.status == "completed",
-            Order.placed_at >= prev_start_dt,
-            Order.placed_at <= prev_end_dt,
-        )
-        .scalar()
-        or 0.0
-    )
+    total_posts = db.query(func.count(NewsPost.id)).scalar() or 0
+    prev_total_posts = db.query(func.count(NewsPost.id)).filter(NewsPost.created_at <= prev_end_dt).scalar() or 0
 
     total_products = db.query(func.count(Product.id)).scalar() or 0
     prev_total_products = db.query(func.count(Product.id)).filter(Product.created_at <= prev_end_dt).scalar() or 0
@@ -169,84 +151,25 @@ def get_dashboard_stats(
         pct = ((cur - prev) / prev) * 100
         return f"+{pct:.1f}%" if pct > 0 else f"{pct:.1f}%"
 
-    revenue_series = _collect_revenue_series(db=db, start_dt=start_dt, end_dt=end_dt)
-    revenue_points = [
-        {"label": label, "value": revenue}
-        for label, revenue in zip(revenue_series["labels"], revenue_series["revenues"], strict=False)
-    ][:60]
-
-    latest_orders_db = (
-        db.query(Order)
-        .filter(Order.placed_at >= start_dt, Order.placed_at <= end_dt)
-        .order_by(Order.placed_at.desc())
+    latest_inquiries_db = (
+        db.query(ContactInquiry)
+        .filter(ContactInquiry.created_at >= start_dt, ContactInquiry.created_at <= end_dt)
+        .order_by(ContactInquiry.created_at.desc())
         .limit(5)
         .all()
     )
-    latest_orders = [
+    latest_inquiries = [
         {
-            "code": order.code,
-            "customer": order.customer_name,
-            "time": order.placed_at.strftime("%H:%M"),
-            "statusKey": order.status,
-            "amount": _format_currency(order.total_amount),
+            "id": int(inquiry.id),
+            "name": inquiry.full_name,
+            "email": inquiry.email,
+            "phone": inquiry.phone or "---",
+            "subject": inquiry.subject or "Yêu cầu báo giá",
+            "status": inquiry.status,
+            "time": inquiry.created_at.strftime("%d/%m %H:%M"),
         }
-        for order in latest_orders_db
+        for inquiry in latest_inquiries_db
     ]
-
-    top_products_db = (
-        db.query(
-            OrderItem.product_name,
-            func.sum(OrderItem.quantity).label("total_sold"),
-            func.sum(OrderItem.unit_price * OrderItem.quantity).label("revenue"),
-            Product.image_url,
-            Product.stock_quantity,
-        )
-        .select_from(OrderItem)
-        .join(Order)
-        .outerjoin(Product, Product.id == OrderItem.product_id)
-        .filter(
-            Order.status == "completed",
-            Order.placed_at >= start_dt,
-            Order.placed_at <= end_dt,
-        )
-        .group_by(OrderItem.product_name, Product.image_url, Product.stock_quantity)
-        .order_by(func.sum(OrderItem.quantity).desc())
-        .limit(5)
-        .all()
-    )
-    top_products = [
-        {
-            "name": row.product_name,
-            "sold": int(row.total_sold),
-            "revenue": float(row.revenue or 0),
-            "stock_quantity": row.stock_quantity if row.stock_quantity is not None else 0,
-            "image_url": row.image_url or "",
-        }
-        for row in top_products_db
-    ]
-
-    status_counts = (
-        db.query(Order.status, func.count(Order.id))
-        .filter(Order.placed_at >= start_dt, Order.placed_at <= end_dt)
-        .group_by(Order.status)
-        .all()
-    )
-    status_dict = {row[0]: row[1] for row in status_counts}
-    total_orders_for_pct = sum(status_dict.values()) or 1
-
-    order_stats = []
-    color_map = {
-        "pending_confirmation": "#f8b72b",
-        "confirmed": "#3b82f6",
-        "shipping": "#8b5cf6",
-        "completed": "#10b981",
-        "cancelled": "#ef4444",
-    }
-    for status_key, color in color_map.items():
-        count = status_dict.get(status_key, 0)
-        if count > 0:
-            pct = round((count / total_orders_for_pct) * 100, 1)
-            order_stats.append({"key": status_key, "value": pct, "color": color, "count": count})
 
     low_stock_products_db = (
         db.query(Product)
@@ -283,15 +206,16 @@ def get_dashboard_stats(
 
     return {
         "kpis": [
-            {"key": "total_orders", "value": str(total_orders), "growth": calc_growth(total_orders, prev_total_orders), "tone": "blue"},
-            {"key": "total_revenue", "value": _format_currency(total_revenue), "growth": calc_growth(total_revenue, prev_total_revenue), "tone": "success"},
             {"key": "products", "value": str(total_products), "growth": calc_growth(total_products, prev_total_products), "tone": "purple"},
             {"key": "customers", "value": str(total_customers), "growth": calc_growth(total_customers, prev_total_customers), "tone": "orange"},
+            {"key": "inquiries", "value": str(total_inquiries), "growth": calc_growth(total_inquiries, prev_total_inquiries), "tone": "success"},
+            {"key": "posts", "value": str(total_posts), "growth": calc_growth(total_posts, prev_total_posts), "tone": "blue"},
         ],
-        "revenuePoints": revenue_points,
-        "latestOrders": latest_orders,
-        "topProducts": top_products,
-        "orderStats": order_stats,
+        "revenuePoints": [],
+        "latestOrders": [],
+        "latestInquiries": latest_inquiries,
+        "topProducts": [],
+        "orderStats": [],
         "quickStats": [
             {"key": "out_of_stock", "value": out_of_stock, "tone": "danger"},
             {"key": "low_stock", "value": low_stock_count, "tone": "warning"},
