@@ -8,7 +8,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_SQLITE_DB_PATH = (PROJECT_ROOT / "china_web.db").resolve()
 DEFAULT_UPLOAD_DIR = (PROJECT_ROOT / "uploads").resolve()
-DEFAULT_ONLYOFFICE_STORAGE_DIR = (DEFAULT_UPLOAD_DIR / "post-documents").resolve()
 
 
 class Settings(BaseSettings):
@@ -56,12 +55,6 @@ class Settings(BaseSettings):
     wp_auto_sync_per_page: int = 50
     wp_auto_sync_max_pages: int = 10
     wp_bidirectional_delete_enabled: bool = False
-    onlyoffice_document_server_url: str = ""
-    onlyoffice_callback_base_url: str = ""
-    onlyoffice_jwt_secret: str = ""
-    onlyoffice_storage_dir: str = str(DEFAULT_ONLYOFFICE_STORAGE_DIR)
-    onlyoffice_docx_public_base_url: str = ""
-    onlyoffice_auto_convert_on_callback: bool = True
     auth_secret_key: str = "change-this-auth-secret"
     access_token_expire_minutes: int = 480
     initial_admin_username: str = "admin"
