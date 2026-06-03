@@ -593,12 +593,14 @@ def _normalize_capability_card(item: Any, index: int) -> dict[str, Any] | None:
         return None
     title = str(item.get("title") or "").strip()
     description = str(item.get("description") or item.get("content") or "").strip()
+    image_url = str(item.get("image_url") or item.get("image") or "").strip()
     if not title and not description:
         return None
     return {
         "title": title or f"Năng lực sản xuất {index + 1}",
         "description": description,
         "icon": str(item.get("icon") or "factory").strip() or "factory",
+        "image_url": image_url,
         "sort_order": _safe_int(item.get("sort_order"), index),
         "is_active": _as_bool(item.get("is_active"), True),
     }
