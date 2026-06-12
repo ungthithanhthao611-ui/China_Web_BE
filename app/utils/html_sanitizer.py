@@ -55,7 +55,7 @@ ALLOWED_STYLE_PROPERTIES = {
     "grid-template-columns",
 }
 
-SAFE_URL_RE = re.compile(r"^(https?://|/|#)", re.IGNORECASE)
+SAFE_URL_RE = re.compile(r"^(https?://|/|#|data:image/)", re.IGNORECASE)
 SAFE_CSS_VALUE_RE = re.compile(r"^[#(),.%\s\-\w\"']+$")
 
 

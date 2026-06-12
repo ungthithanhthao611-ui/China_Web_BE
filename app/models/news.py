@@ -22,7 +22,7 @@ class NewsPost(BigIntPrimaryKeyMixin, TimestampMixin, Base):
     content_en: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     content_zh: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     content_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    thumbnail_url: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
+    thumbnail_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     image_id: Mapped[Optional[int]] = mapped_column(nullable=True)
     author: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     status: Mapped[str] = mapped_column(String(50), default="draft", index=True, nullable=False)
